@@ -54,6 +54,7 @@ curl -X POST -H "Authorization: Bearer demo-tokyo" http://127.0.0.1:8000/dev/tic
 
 | 環境変数 | 既定値 | 意味 |
 |---|---|---|
+| `OVERHEARTH_DIALOGUE_SCOPE` | `featured` | `bedrock` のとき、デモの家か連携した家が関わる出会いだけモデルで会話を作る（それ以外は決まった文面にして費用を抑える）。`all` にするとすべての出会いでモデルを使う |
 | `OVERHEARTH_DIALOGUE` | `template` | `bedrock` にすると、Bedrock 上の Strands Agents で会話を生成する |
 | `OVERHEARTH_BEDROCK_MODEL` | `global.anthropic.claude-haiku-5-5` | Bedrock のモデル ID か推論プロファイル ID |
 | `OVERHEARTH_SEED` | `town` | `town` はデモの町、`dev` はテスト用の小さな町 |

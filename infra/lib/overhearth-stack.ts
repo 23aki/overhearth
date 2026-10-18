@@ -129,6 +129,8 @@ export class OverhearthStack extends Stack {
     const http = new apigwv2.HttpApi(this, "Http", {
       defaultIntegration: new HttpLambdaIntegration("ApiIntegration", alias),
     });
+    // OAuth metadata must name the public URL exactly, whatever Host header reaches the function.
+    api.addEnvironment("OVERHEARTH_PUBLIC_URL", http.apiEndpoint);
 
     const tick = new lambda.Function(this, "Tick", {
       runtime: lambda.Runtime.PYTHON_3_11,

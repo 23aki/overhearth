@@ -62,6 +62,7 @@ def _brief(household: Household, store: Store) -> AvatarBrief:
         home=household.label,
         personality=tuple(household.personality),
         offers=_offers(household, store),
+        featured=household.tier in ("demo", "real"),
     )
 
 

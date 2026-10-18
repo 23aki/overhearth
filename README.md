@@ -67,6 +67,7 @@ curl -X POST -H "Authorization: Bearer demo-tokyo" http://127.0.0.1:8000/dev/tic
 | Variable | Default | Meaning |
 |---|---|---|
 | `OVERHEARTH_DIALOGUE` | `template` | `bedrock` to generate dialogue with Strands Agents on Bedrock |
+| `OVERHEARTH_DIALOGUE_SCOPE` | `featured` | With `bedrock`: use the model only for encounters with a demo or linked home (the rest use the template, to save cost). `all` for every encounter |
 | `OVERHEARTH_BEDROCK_MODEL` | `global.anthropic.claude-haiku-5-5` | Bedrock model or inference profile id |
 | `OVERHEARTH_SEED` | `town` | `town` for the demo town, `dev` for a tiny town used in tests |
 | `OVERHEARTH_DEV_ENDPOINTS` | unset | `1` enables `POST /dev/tick` (needs a linked home's token; at most once per 30 seconds) |

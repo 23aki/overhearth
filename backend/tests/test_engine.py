@@ -160,3 +160,45 @@ def test_the_lambda_tick_handler_runs_a_tick(monkeypatch):
     assert first["tick"] == 1
     assert second["tick"] == 2
     assert first["encounters"] >= 1
+
+
+def test_featured_dialogue_uses_the_model_only_with_demo_or_linked_homes():
+    from overhearth.engine import FeaturedDialogue
+    from overhearth.engine.dialogue import AvatarBrief, EncounterScript, TemplateDialogue
+
+    class CountingModel:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def generate(self, a: AvatarBrief, b: AvatarBrief) -> EncounterScript:
+            self.calls += 1
+            return TemplateDialogue().generate(a, b)
+
+    model = CountingModel()
+    dialogue = FeaturedDialogue(model)
+    plain = AvatarBrief("hh_a", "Ash", "home a", (), ())
+    other = AvatarBrief("hh_b", "Birch", "home b", (), ())
+    demo = AvatarBrief("hh_c", "Kiri", "home c", (), (), featured=True)
+    dialogue.generate(plain, other)
+    assert model.calls == 0
+    dialogue.generate(plain, demo)
+    assert model.calls == 1
+
+
+def test_a_seeded_tick_calls_the_model_for_a_few_encounters_only():
+    import random
+
+    from overhearth.engine import FeaturedDialogue, run_tick
+    from overhearth.engine.dialogue import TemplateDialogue
+    from overhearth.town_seed import seeded_town
+
+    class CountingModel:
+        calls = 0
+
+        def generate(self, a, b):
+            CountingModel.calls += 1
+            return TemplateDialogue().generate(a, b)
+
+    result = run_tick(seeded_town(), FeaturedDialogue(CountingModel()), rng=random.Random(4))
+    assert 1 <= CountingModel.calls <= 4
+    assert result.encounters > CountingModel.calls
