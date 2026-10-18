@@ -222,8 +222,8 @@ class Thanks(KindHandler):
             # The report line counts everything since the home last heard its report, and
             # replaces the earlier line about the same tip, so it is said once and up to date.
             pending = ctx.store.latest_report(tip.origin_household)
-            heard_at = pending.since if pending else ctx.since
-            unheard = [t for t in every if t.created_at > heard_at]
+            heard_at = min(pending.since, ctx.since) if pending else ctx.since
+            unheard = [t for t in every if t.created_at > heard_at] or thanks
             homes = sorted({t.origin_household for t in unheard})
             times = "once" if len(unheard) == 1 else f"{len(unheard)} times"
             places = "one home" if len(homes) == 1 else f"{len(homes)} homes"

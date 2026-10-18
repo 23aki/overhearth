@@ -41,6 +41,8 @@ DEFAULT_SCOPE = " ".join(SCOPES)
 ACCESS_TOKEN_TTL = timedelta(hours=1)
 REFRESH_TOKEN_TTL = timedelta(days=30)
 CODE_TTL = timedelta(minutes=5)
+NEW_HOMES_PER_HOUR = 20
+"""Town-wide, whatever address the requests come from."""
 MAX_REAL_HOUSEHOLDS = 50
 """Linking creates a household, so cap how many a public deployment will accept."""
 
@@ -151,6 +153,7 @@ def install_oauth_routes(server, store: Store, clients: dict[str, OAuthClient] |
     """Add the metadata, /authorize and /token routes to the MCP server's Starlette app."""
     clients = clients if clients is not None else clients_from_env()
     limiter = RateLimiter(limit=30)
+    new_homes = RateLimiter(limit=NEW_HOMES_PER_HOUR)
 
     async def protected_resource(request: Request) -> JSONResponse:
         base = public_base(request)
@@ -231,7 +234,7 @@ def install_oauth_routes(server, store: Store, clients: dict[str, OAuthClient] |
             return _redirect_error(params, *pkce_error)
         if params.get("decision") != "allow":
             return _redirect_error(params, "access_denied", "The person did not link their home.")
-        if not limiter.allow(f"authorize:{_client_ip(request)}"):
+        if not limiter.allow(f"authorize:{_client_ip(request)}") or not new_homes.allow("town"):
             return _page("Please try again later", "<p>Too many homes were linked from here recently.</p>", status=429)
 
         avatar = " ".join(params.get("avatar", "").split())
@@ -264,11 +267,11 @@ def install_oauth_routes(server, store: Store, clients: dict[str, OAuthClient] |
             tier="real",
             avatar_name=avatar,
         )
-        store.add_household(household)
-        if email:
-            store.put_delivery(
-                DeliverySettings(household_id=household.id, email=email, notify_thanks=params.get("notify") == "on")
-            )
+        delivery = (
+            DeliverySettings(household_id=household.id, email=email, notify_thanks=params.get("notify") == "on")
+            if email
+            else None
+        )
         code = secrets.token_urlsafe(32)
         store.put_auth_code(
             code,
@@ -279,6 +282,8 @@ def install_oauth_routes(server, store: Store, clients: dict[str, OAuthClient] |
                 household_id=household.id,
                 scope=params.get("scope") or DEFAULT_SCOPE,
                 expires_at=utcnow() + CODE_TTL,
+                household=household,
+                delivery=delivery,
             ),
         )
         query = {"code": code}
@@ -357,14 +362,19 @@ def install_oauth_routes(server, store: Store, clients: dict[str, OAuthClient] |
                 return _token_error("invalid_grant", "redirect_uri does not match.")
             if not _VERIFIER.match(verifier) or not hmac.compare_digest(s256(verifier), grant.code_challenge):
                 return _token_error("invalid_grant", "PKCE verification failed.")
+            if grant.household is not None and store.get_household(grant.household.id) is None:
+                if sum(1 for h in store.households() if h.tier == "real") >= MAX_REAL_HOUSEHOLDS:
+                    return _token_error("temporarily_unavailable", "The town is full right now.", status=503)
+                store.add_household(grant.household)
+                if grant.delivery is not None:
+                    store.put_delivery(grant.delivery)
             return _no_store(JSONResponse(_issue(client.client_id, grant.household_id, grant.scope, refresh=True)))
 
         if grant_type == "refresh_token":
             presented = str(form.get("refresh_token") or "")
-            issued = store.resolve_token(presented, kind="refresh")
+            issued = store.take_token(presented, kind="refresh")  # rotate: each refresh token works once
             if issued is None or issued.client_id != client.client_id:
                 return _token_error("invalid_grant", "The refresh token is unknown or expired.")
-            store.revoke_token(presented)  # rotate: each refresh token works once
             return _no_store(JSONResponse(_issue(client.client_id, issued.household_id, issued.scope, refresh=True)))
 
         if grant_type == "client_credentials":

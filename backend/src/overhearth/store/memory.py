@@ -73,6 +73,12 @@ class MemoryStore:
     def revoke_token(self, token: str) -> None:
         self._tokens.pop(token_hash(token), None)
 
+    def take_token(self, token: str, *, kind: str) -> IssuedToken | None:
+        issued = self.resolve_token(token, kind=kind)
+        if issued is not None:
+            self.revoke_token(token)
+        return issued
+
     def put_auth_code(self, code: str, grant: AuthGrant) -> None:
         self._codes[token_hash(code)] = grant
 

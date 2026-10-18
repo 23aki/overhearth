@@ -40,6 +40,10 @@ class Store(Protocol):
 
     def revoke_token(self, token: str) -> None: ...
 
+    def take_token(self, token: str, *, kind: str) -> IssuedToken | None:
+        """Return what a still-valid token stands for and forget it, so it works once (refresh rotation)."""
+        ...
+
     def put_auth_code(self, code: str, grant: AuthGrant) -> None: ...
 
     def take_auth_code(self, code: str) -> AuthGrant | None:

@@ -131,6 +131,9 @@ export class OverhearthStack extends Stack {
     });
     // OAuth metadata must name the public URL exactly, whatever Host header reaches the function.
     api.addEnvironment("OVERHEARTH_PUBLIC_URL", http.apiEndpoint);
+    // A ceiling for the whole API, so nobody can run up the model bill.
+    const stage = http.defaultStage?.node.defaultChild as apigwv2.CfnStage;
+    stage.defaultRouteSettings = { throttlingRateLimit: 10, throttlingBurstLimit: 20 };
 
     const tick = new lambda.Function(this, "Tick", {
       runtime: lambda.Runtime.PYTHON_3_11,

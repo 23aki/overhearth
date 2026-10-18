@@ -7,6 +7,7 @@ each request (the account-linking token in a real Alexa+ deployment).
 
 from __future__ import annotations
 
+import logging
 from importlib import resources
 from typing import Literal
 
@@ -21,6 +22,8 @@ from overhearth.assistant import RateLimiter
 from overhearth.delivery import Mailer, mailer_from_env, mask_email, report_email
 from overhearth.models import Household, KnowledgeEntry, Packet, PacketContext, ReportItem, TownEvent, utcnow
 from overhearth.store import Store
+
+log = logging.getLogger(__name__)
 
 TOWN_UI_URI = "ui://overhearth/town.html"
 
@@ -318,7 +321,18 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
                 return EmailResult(
                     speech="I've sent a few already. Let's try again later.", needs_confirmation=False, dry_run=False
                 )
-            mailer.send(address, subject, body)
+            try:
+                mailer.send(address, subject, body)
+            except Exception as error:  # e.g. an unverified address in the SES sandbox
+                log.warning("email_report failed: %s", type(error).__name__)
+                return EmailResult(
+                    speech="I couldn't send the email just now. Here it is on screen instead.",
+                    needs_confirmation=False,
+                    to=masked,
+                    subject=subject,
+                    body=body,
+                    dry_run=True,
+                )
             speech = f"Sent to {masked}. There's a copy on screen too."
         else:
             speech = "Here it is on screen. Nothing was sent."

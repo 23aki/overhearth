@@ -73,8 +73,8 @@ class DynamoStore:
     def _put(self, pk: str, sk: str, data: str, **extra: Any) -> None:
         self.table.put_item(Item={"pk": pk, "sk": sk, "data": data, **extra})
 
-    def _get(self, pk: str, sk: str = _NONE) -> str | None:
-        item = self.table.get_item(Key={"pk": pk, "sk": sk}).get("Item")
+    def _get(self, pk: str, sk: str = _NONE, *, consistent: bool = False) -> str | None:
+        item = self.table.get_item(Key={"pk": pk, "sk": sk}, ConsistentRead=consistent).get("Item")
         return item["data"] if item else None
 
     def _query(self, pk: str, *, newest_first: bool = False, limit: int | None = None, **kwargs: Any) -> list[dict]:
@@ -113,13 +113,24 @@ class DynamoStore:
     # tokens and authorization codes -------------------------------------------
 
     def resolve_token(self, token: str, *, kind: str = "access") -> IssuedToken | None:
-        data = self._get(f"TOKEN#{token_hash(token)}")
+        # Consistent, so a token works the moment it is issued.
+        data = self._get(f"TOKEN#{token_hash(token)}", consistent=True)
+        return self._valid(data, kind)
+
+    @staticmethod
+    def _valid(data: str | None, kind: str) -> IssuedToken | None:
         if data is None:
             return None
         issued = IssuedToken.model_validate_json(data)
         if issued.kind != kind or (issued.expires_at is not None and issued.expires_at <= utcnow()):
             return None
         return issued
+
+    def take_token(self, token: str, *, kind: str) -> IssuedToken | None:
+        # Delete and read in one request: two concurrent refreshes cannot both succeed.
+        old = self.table.delete_item(Key={"pk": f"TOKEN#{token_hash(token)}", "sk": _NONE}, ReturnValues="ALL_OLD")
+        item = old.get("Attributes")
+        return self._valid(item["data"] if item else None, kind)
 
     def put_token(self, token: str, issued: IssuedToken) -> None:
         extra = {"ttl": _epoch(issued.expires_at)} if issued.expires_at else {}

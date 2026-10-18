@@ -59,6 +59,15 @@ export async function mountApp(
   const loaded = new Promise<void>((resolve) => iframe.addEventListener("load", () => resolve(), { once: true }));
   iframe.srcdoc = html;
   await bridge.connect(new PostMessageTransport(iframe.contentWindow!, iframe.contentWindow!));
+  // connect() forwards every tool call; narrow it to what a view should use: tools only views
+  // can see, and the tool that opened it. Anything that acts for the person stays with Alexa.
+  bridge.oncalltool = async (params) => {
+    const tool = mcp.tools.get(params.name);
+    if (!tool || !(tool.appOnly || tool.resourceUri === resourceUri)) {
+      throw new Error(`The town view may not call ${params.name}.`);
+    }
+    return (await mcp.client.callTool(params)) as Awaited<ReturnType<NonNullable<typeof bridge.oncalltool>>>;
+  };
   await loaded;
 
   return async () => {
