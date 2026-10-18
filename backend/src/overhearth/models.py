@@ -111,3 +111,26 @@ class TownEvent(BaseModel):
     refs: list[str] = Field(default_factory=list)
     detail: dict[str, Any] = Field(default_factory=dict)
     """Extra data for the town view, such as the dialogue lines of an encounter."""
+
+
+class AuthGrant(BaseModel):
+    """An authorization code waiting to be exchanged. Stored under the code's hash, used once."""
+
+    client_id: str
+    redirect_uri: str
+    code_challenge: str
+    household_id: str
+    scope: str
+    expires_at: datetime
+
+
+class IssuedToken(BaseModel):
+    """What a bearer token stands for. OAuth tokens are stored under their hash only."""
+
+    kind: Literal["access", "refresh"]
+    client_id: str
+    household_id: str | None
+    """None for a service token (client_credentials): it may list tools but acts for no home."""
+    scope: str
+    expires_at: datetime | None = None
+    """None for the pre-issued demo tokens, which never expire."""

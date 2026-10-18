@@ -117,6 +117,30 @@ npm run build:town   # writes backend/src/overhearth/ui/town.html
 | `VITE_BACKEND_URL` (web) | `http://127.0.0.1:8000` | Backend base URL |
 | `VITE_DEV_TICK` (web) | unset | `1` shows the "Advance town time" button |
 
+## Household account linking (OAuth)
+
+Each home is identified by its own bearer token, the way Alexa+ links an account to an MCP server.
+The demo households use pre-issued tokens, so nobody has to sign in to try the demo. A real home is
+linked with OAuth 2.1:
+
+- `GET /.well-known/oauth-protected-resource` (RFC 9728, also at `.../oauth-protected-resource/mcp`)
+  names the MCP endpoint and the authorization server.
+- `GET /.well-known/oauth-authorization-server` lists the endpoints and `S256` as the only PKCE method.
+- `/authorize` asks the person for an avatar name and a short description of the home, then creates
+  the household. `/token` handles the authorization code (PKCE required), refresh tokens (rotated on
+  every use) and `client_credentials` for confidential clients.
+- `/mcp` without a valid token gets a 401 with no `WWW-Authenticate` header, as the Alexa+ checklist
+  asks. Clients find the authorization server through the resource metadata.
+- Only hashes of tokens and codes are stored. Access tokens last 1 hour, refresh tokens 30 days.
+
+In the web client, pick "Link your own home…" in the home menu to run the flow.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `OVERHEARTH_PUBLIC_URL` | from the request | Public origin used in the metadata (set it behind a proxy or API gateway) |
+| `OVERHEARTH_WEB_REDIRECTS` | `http://localhost:5173/,http://127.0.0.1:5173/` | Redirect URIs allowed for the web client |
+| `OVERHEARTH_OAUTH_CLIENTS` | unset | JSON list of confidential clients: `client_id`, `client_secret`, `redirect_uris`, `name`. Keep it out of the repository |
+
 ## Data and privacy
 
 - Only what a person explicitly agrees to share leaves their home, and contact details are

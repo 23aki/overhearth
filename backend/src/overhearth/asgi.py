@@ -17,6 +17,7 @@ from overhearth.assistant import RateLimiter, TurnRequest, assistant_from_env, t
 from overhearth.dev_seed import seeded_store
 from overhearth.engine import dialogue_from_env, run_tick
 from overhearth.mcp_server import build_server
+from overhearth.oauth import BearerGate, install_oauth_routes
 from overhearth.store import Store
 from overhearth.town_seed import seeded_town
 
@@ -43,6 +44,8 @@ def create_app(store: Store | None = None) -> ASGIApp:
     @server.custom_route("/health", methods=["GET"])
     async def health(_: Request) -> JSONResponse:
         return JSONResponse({"status": "ok"})
+
+    install_oauth_routes(server, store)
 
     assistant = assistant_from_env()
     limiter = RateLimiter()
@@ -84,7 +87,7 @@ def create_app(store: Store | None = None) -> ASGIApp:
     )
     origins = [o.strip() for o in os.environ.get("OVERHEARTH_ALLOWED_ORIGINS", "*").split(",") if o.strip()]
     return CORSMiddleware(
-        app,
+        BearerGate(app, store),
         allow_origins=origins,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["authorization", "content-type", "mcp-protocol-version", "mcp-session-id"],
