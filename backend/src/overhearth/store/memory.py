@@ -2,10 +2,21 @@
 
 from __future__ import annotations
 
+import hashlib
 from datetime import datetime, timedelta
 from typing import Any
 
-from overhearth.models import Household, KnowledgeEntry, Packet, Report, ReportItem, TownEvent
+from overhearth.models import (
+    AuthGrant,
+    Household,
+    IssuedToken,
+    KnowledgeEntry,
+    Packet,
+    Report,
+    ReportItem,
+    TownEvent,
+    utcnow,
+)
 from overhearth.text import MIN_SEARCH_RELEVANCE, answers, relevance
 
 FIRST_TICK_LOOKBACK = timedelta(hours=1)
@@ -16,10 +27,16 @@ TOWN_VIEW_EVENTS = 80
 """How many recent town events the town view gets for its log and replay."""
 
 
+def token_hash(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
 class MemoryStore:
     def __init__(self) -> None:
         self._households: dict[str, Household] = {}
-        self._tokens: dict[str, str] = {}
+        self._tokens: dict[str, IssuedToken] = {}
+        """Token hash to what it stands for."""
+        self._codes: dict[str, AuthGrant] = {}
         self._packets: dict[str, Packet] = {}
         self._reports: dict[str, Report] = {}
         self._events: list[TownEvent] = []
@@ -32,11 +49,38 @@ class MemoryStore:
     def add_household(self, household: Household, *, token: str | None = None) -> None:
         self._households[household.id] = household
         if token:
-            self._tokens[token] = household.id
+            self.put_token(
+                token, IssuedToken(kind="access", client_id="demo", household_id=household.id, scope="mcp:tools")
+            )
 
     def household_for_token(self, token: str) -> Household | None:
-        household_id = self._tokens.get(token)
-        return self._households.get(household_id) if household_id else None
+        issued = self.resolve_token(token)
+        return self._households.get(issued.household_id) if issued and issued.household_id else None
+
+    # tokens and authorization codes -----------------------------------------
+
+    def resolve_token(self, token: str, *, kind: str = "access") -> IssuedToken | None:
+        issued = self._tokens.get(token_hash(token))
+        if issued is None or issued.kind != kind:
+            return None
+        if issued.expires_at is not None and issued.expires_at <= utcnow():
+            return None
+        return issued
+
+    def put_token(self, token: str, issued: IssuedToken) -> None:
+        self._tokens[token_hash(token)] = issued
+
+    def revoke_token(self, token: str) -> None:
+        self._tokens.pop(token_hash(token), None)
+
+    def put_auth_code(self, code: str, grant: AuthGrant) -> None:
+        self._codes[token_hash(code)] = grant
+
+    def take_auth_code(self, code: str) -> AuthGrant | None:
+        grant = self._codes.pop(token_hash(code), None)
+        if grant is None or grant.expires_at <= utcnow():
+            return None
+        return grant
 
     def get_household(self, household_id: str) -> Household | None:
         return self._households.get(household_id)

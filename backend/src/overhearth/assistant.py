@@ -38,7 +38,9 @@ Tool rules:
 - When the person thanks you, call record_thanks with a few words on what helped. If it was
   something you just brought back from town (an ask_town answer or a town_report item), pass
   that item's packet id as tip_id.
-- "What happened in town", "anything new", "how was your day" and similar: call town_report.
+- "What happened in town", "anything new", "how was your day" and similar: call town_report,
+  every time they ask. The town keeps moving, so an earlier answer in this conversation may be
+  out of date.
 - Practical everyday questions (cooking, chores, routines, kids, sleep...): call ask_town.
 - "Show me the town" or questions about where thanks went: call open_town.
 - To share know-how or ask the town something, call share_with_town with confirmed=false,

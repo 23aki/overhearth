@@ -45,9 +45,10 @@ def test_town_state_is_structured_for_the_view(server_url):
     assert all({"avatar", "glow", "region"} <= set(h) for h in state["homes"])
 
 
-def test_unlinked_household_gets_a_tool_error(server_url):
-    result, _ = _client(server_url, token="nope").call_tool("town_report")
-    assert result["isError"] is True
+def test_unlinked_household_gets_401(server_url):
+    with pytest.raises(RpcError) as raised:
+        _client(server_url, token="nope")
+    assert raised.value.status == 401
 
 
 def test_town_report_returns_precomputed_report(server_url):
@@ -98,8 +99,9 @@ def test_thanks_links_back_to_tip(server_url, store):
 
 
 def test_missing_token_is_rejected(server_url):
-    result, _ = _client(server_url, token=None).call_tool("town_report")
-    assert result["isError"] is True
+    with pytest.raises(RpcError) as raised:
+        _client(server_url, token=None)
+    assert raised.value.status == 401
 
 
 def test_rpc_errors_surface_as_exceptions(server_url):

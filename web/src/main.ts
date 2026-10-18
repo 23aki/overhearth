@@ -2,6 +2,7 @@ import { mountApp } from "./apphost";
 import { type Message, type ToolEvent, runTurn } from "./assistant";
 import { renderToolEvent, townPlaceholder } from "./cards";
 import { DEMO_HOUSEHOLDS, DEV_TICK_URL, SHOW_DEV_TICK } from "./config";
+import { type LinkedHome, finishLinking, freshLinkedHome, linkedHome, startLinking } from "./link";
 import { McpConnection } from "./mcp";
 import { canListen, listenOnce, speak, stopSpeaking } from "./voice";
 
@@ -9,6 +10,8 @@ type RingState = "idle" | "listening" | "thinking" | "speaking";
 
 interface Home {
   token: string;
+  /** Set for a home linked with OAuth; its access token is refreshed when it expires. */
+  linked?: LinkedHome;
   mcp: McpConnection | null;
   history: Message[];
   lines: { who: "you" | "alexa"; text: string }[];
@@ -52,7 +55,19 @@ function addLine(who: "you" | "alexa", text: string): void {
   drawTranscript();
 }
 
+const LINK_OPTION = "__link__";
+const LINKED_KEY = "linked";
+
 async function ensureConnected(home: Home): Promise<McpConnection> {
+  if (home.linked) {
+    const fresh = await freshLinkedHome(home.linked);
+    if (fresh.token !== home.token) {
+      home.linked = fresh;
+      home.token = fresh.token;
+      await home.mcp?.close().catch(() => undefined);
+      home.mcp = null;
+    }
+  }
   if (!home.mcp) home.mcp = await McpConnection.open(home.token);
   return home.mcp;
 }
@@ -109,14 +124,33 @@ async function handle(text: string): Promise<void> {
   }
 }
 
+function addOption(value: string, text: string, before?: HTMLOptionElement | null): HTMLOptionElement {
+  const option = document.createElement("option");
+  option.value = value;
+  option.textContent = text;
+  picker.insertBefore(option, before ?? null);
+  return option;
+}
+
+function addLinkedHome(linked: LinkedHome): void {
+  homes.set(LINKED_KEY, { token: linked.token, linked, mcp: null, history: [], lines: [] });
+  picker.querySelector(`option[value="${LINKED_KEY}"]`)?.remove();
+  addOption(LINKED_KEY, `${linked.avatar} · ${linked.label} (your home)`, picker.querySelector(`option[value="${LINK_OPTION}"]`));
+}
+
 function fillPicker(): void {
-  for (const home of DEMO_HOUSEHOLDS) {
-    const option = document.createElement("option");
-    option.value = home.token;
-    option.textContent = `${home.avatar} · ${home.label}`;
-    picker.append(option);
-  }
+  for (const home of DEMO_HOUSEHOLDS) addOption(home.token, `${home.avatar} · ${home.label}`);
+  addOption(LINK_OPTION, "Link your own home…");
+  const saved = linkedHome();
+  if (saved) addLinkedHome(saved);
+  let previous = picker.value;
   picker.addEventListener("change", () => {
+    if (picker.value === LINK_OPTION) {
+      picker.value = previous;
+      void startLinking();
+      return;
+    }
+    previous = picker.value;
     stopSpeaking();
     clearPanel();
     current = homes.get(picker.value)!;
@@ -176,3 +210,13 @@ if (SHOW_DEV_TICK) {
 
 fillPicker();
 drawTranscript();
+finishLinking().then(
+  (linked) => {
+    if (!linked) return;
+    addLinkedHome(linked);
+    picker.value = LINKED_KEY;
+    picker.dispatchEvent(new Event("change"));
+    addLine("alexa", `Your home is linked. ${linked.avatar} has moved into town.`);
+  },
+  (error: unknown) => addLine("alexa", error instanceof Error ? error.message : "Linking failed."),
+);

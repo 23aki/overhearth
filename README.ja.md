@@ -100,6 +100,24 @@ npm run build:town   # backend/src/overhearth/ui/town.html に出力
 | `VITE_BACKEND_URL`（web） | `http://127.0.0.1:8000` | バックエンドの URL |
 | `VITE_DEV_TICK`（web） | 未設定 | `1` にすると「Advance town time」ボタンを表示する |
 
+## 家ごとのアカウント連携（OAuth）
+
+Alexa+ が MCP サーバーとアカウントを連携するのと同じように、家はそれぞれのベアラートークンで見分けます。デモの家には事前に発行したトークンがあるので、デモを試すのにサインインは要りません。本物の家は OAuth 2.1 で連携します。
+
+- `GET /.well-known/oauth-protected-resource`（RFC 9728。`.../oauth-protected-resource/mcp` でも同じ内容）で、MCP のエンドポイントと認可サーバーを示します。
+- `GET /.well-known/oauth-authorization-server` で、各エンドポイントと、PKCE の方式が `S256` だけであることを示します。
+- `/authorize` では、分身の名前と家の短い説明を入力してもらい、家を作ります。`/token` は、認可コード（PKCE 必須）、リフレッシュトークン（使うたびに入れ替える）、機密クライアント向けの `client_credentials` を扱います。
+- 有効なトークンなしで `/mcp` を呼ぶと 401 を返します。Alexa+ のチェックリストに合わせて `WWW-Authenticate` ヘッダーは付けません。クライアントは、リソースのメタデータから認可サーバーを見つけます。
+- 保存するのはトークンとコードのハッシュだけです。アクセストークンの有効期間は1時間、リフレッシュトークンは30日です。
+
+Web クライアントでは、家の選択メニューの「Link your own home…」から連携を試せます。
+
+| 環境変数 | 既定値 | 意味 |
+|---|---|---|
+| `OVERHEARTH_PUBLIC_URL` | リクエストから求める | メタデータに使う公開の URL（プロキシや API Gateway の後ろでは設定する） |
+| `OVERHEARTH_WEB_REDIRECTS` | `http://localhost:5173/,http://127.0.0.1:5173/` | Web クライアントに許すリダイレクト先 |
+| `OVERHEARTH_OAUTH_CLIENTS` | 未設定 | 機密クライアントの JSON の配列（`client_id`、`client_secret`、`redirect_uris`、`name`）。リポジトリには入れない |
+
 ## データとプライバシー
 
 - 家の外に出るのは、本人が共有に同意したものだけです。保存する前に、連絡先などの情報は取り除きます。

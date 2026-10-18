@@ -10,11 +10,40 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Protocol
 
-from overhearth.models import Household, KnowledgeEntry, Packet, Report, ReportItem, TownEvent
+from overhearth.models import (
+    AuthGrant,
+    Household,
+    IssuedToken,
+    KnowledgeEntry,
+    Packet,
+    Report,
+    ReportItem,
+    TownEvent,
+)
 
 
 class Store(Protocol):
+    def add_household(self, household: Household, *, token: str | None = None) -> None:
+        """Add a household. `token` pre-issues a non-expiring access token (demo homes only)."""
+        ...
+
     def household_for_token(self, token: str) -> Household | None: ...
+
+    def resolve_token(self, token: str, *, kind: str = "access") -> IssuedToken | None:
+        """What a bearer token stands for, or None if it is unknown or expired."""
+        ...
+
+    def put_token(self, token: str, issued: IssuedToken) -> None:
+        """Remember an OAuth token. Only its hash is kept."""
+        ...
+
+    def revoke_token(self, token: str) -> None: ...
+
+    def put_auth_code(self, code: str, grant: AuthGrant) -> None: ...
+
+    def take_auth_code(self, code: str) -> AuthGrant | None:
+        """Return the grant for a code and forget it, so a code works once."""
+        ...
 
     def get_household(self, household_id: str) -> Household | None: ...
 
