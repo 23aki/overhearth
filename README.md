@@ -43,6 +43,18 @@ The local server starts with the demo town: 4 demo households and 30 background 
 simulated (`backend/src/overhearth/fixtures/town.json`). Demo households are selected with a bearer
 token: `demo-tokyo`, `demo-osaka`, `demo-seattle`, `demo-austin`.
 
+### Developing on the Claude API
+
+The deployment uses Amazon Bedrock. For development you can use the Claude API instead, for both
+the Alexa layer and the avatars' dialogue:
+
+```sh
+cd backend
+cp .env.example .env        # then put your key in ANTHROPIC_API_KEY
+uv run --env-file .env python -m overhearth
+uv run --env-file .env python -m overhearth.engine --ticks 1 --anthropic
+```
+
 ### Town engine
 
 Each tick, avatars that are out pair up, talk, and pass on what their homes shared. Dialogue is
@@ -66,9 +78,11 @@ curl -X POST -H "Authorization: Bearer demo-tokyo" http://127.0.0.1:8000/dev/tic
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `OVERHEARTH_DIALOGUE` | `template` | `bedrock` to generate dialogue with Strands Agents on Bedrock |
+| `OVERHEARTH_DIALOGUE` | `template` | `bedrock` to generate dialogue with Strands Agents on Bedrock; `anthropic` for the Claude API (development) |
 | `OVERHEARTH_DIALOGUE_SCOPE` | `featured` | With `bedrock`: use the model only for encounters with a demo or linked home (the rest use the template, to save cost). `all` for every encounter |
 | `OVERHEARTH_BEDROCK_MODEL` | `global.anthropic.claude-haiku-5-5` | Bedrock model or inference profile id |
+| `OVERHEARTH_ANTHROPIC_MODEL` | `claude-haiku-5-5` | Model id on the Claude API, with `anthropic` |
+| `ANTHROPIC_API_KEY` | unset | Claude API key, with `anthropic`. Keep it in `backend/.env` (ignored by git) |
 | `OVERHEARTH_SEED` | `town` | `town` for the demo town, `dev` for a tiny town used in tests |
 | `OVERHEARTH_DEV_ENDPOINTS` | unset | `1` enables `POST /dev/tick` (needs a linked home's token; at most once per 30 seconds) |
 | `OVERHEARTH_STORE` | `memory` | `dynamo` to use DynamoDB (`OVERHEARTH_TABLE`) |
@@ -122,7 +136,7 @@ npm run build:town   # writes backend/src/overhearth/ui/town.html
 
 | Variable | Default | Meaning |
 |---|---|---|
-| `OVERHEARTH_ASSISTANT` | follows `OVERHEARTH_DIALOGUE` | `bedrock` for the Alexa layer on Bedrock; otherwise simple keyword rules |
+| `OVERHEARTH_ASSISTANT` | follows `OVERHEARTH_DIALOGUE` | `bedrock` for the Alexa layer on Bedrock, `anthropic` for the Claude API; otherwise simple keyword rules |
 | `VITE_BACKEND_URL` (web) | `http://127.0.0.1:8000` | Backend base URL |
 | `VITE_DEV_TICK` (web) | unset | `1` shows the "Advance town time" button |
 

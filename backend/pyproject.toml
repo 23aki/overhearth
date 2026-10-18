@@ -10,7 +10,7 @@ dependencies = [
     "boto3>=1.43.114",
     "mcp>=2.1,<2.2",
     "pydantic>=2.14.1",
-    "strands-agents>=1.60",
+    "strands-agents[anthropic]>=1.60",
     "uvicorn>=0.54.0",
 ]
 

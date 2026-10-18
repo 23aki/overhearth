@@ -37,6 +37,17 @@ uv run python scripts/measure_latency.py --token demo-tokyo
 
 ローカルのサーバーは、デモの町の状態で起動します。デモの家4軒と背景の家30軒で、すべて模擬のものです（`backend/src/overhearth/fixtures/town.json`）。デモの家は Bearer トークンで選びます: `demo-tokyo`、`demo-osaka`、`demo-seattle`、`demo-austin`。
 
+### Claude API で開発する
+
+デプロイ版は Amazon Bedrock を使います。開発中は、Alexa の層と分身の会話の両方を Claude API に切り替えられます。
+
+```sh
+cd backend
+cp .env.example .env        # ANTHROPIC_API_KEY にキーを書く
+uv run --env-file .env python -m overhearth
+uv run --env-file .env python -m overhearth.engine --ticks 1 --anthropic
+```
+
 ### 町のエンジン
 
 町の時間が1つ進むごとに（tick）、町に出ている分身どうしが組になって話し、それぞれの家が共有したものを受け渡します。会話は Amazon Bedrock 上の [Strands Agents](https://strandsagents.com) で生成します（既定のモデルは Claude Haiku 5.5）。オフラインでは決まった文面を使います。
@@ -54,9 +65,11 @@ curl -X POST -H "Authorization: Bearer demo-tokyo" http://127.0.0.1:8000/dev/tic
 
 | 環境変数 | 既定値 | 意味 |
 |---|---|---|
-| `OVERHEARTH_DIALOGUE` | `template` | `bedrock` にすると、Bedrock 上の Strands Agents で会話を生成する |
+| `OVERHEARTH_DIALOGUE` | `template` | `bedrock` にすると、Bedrock 上の Strands Agents で会話を生成する。`anthropic` にすると Claude API を使う（開発用） |
 | `OVERHEARTH_DIALOGUE_SCOPE` | `featured` | `bedrock` のとき、デモの家か連携した家が関わる出会いだけモデルで会話を作る（それ以外は決まった文面にして費用を抑える）。`all` にするとすべての出会いでモデルを使う |
 | `OVERHEARTH_BEDROCK_MODEL` | `global.anthropic.claude-haiku-5-5` | Bedrock のモデル ID か推論プロファイル ID |
+| `OVERHEARTH_ANTHROPIC_MODEL` | `claude-haiku-5-5` | `anthropic` のときに使う Claude API のモデル ID |
+| `ANTHROPIC_API_KEY` | 未設定 | `anthropic` のときの Claude API のキー。`backend/.env`（git の管理外）に置く |
 | `OVERHEARTH_SEED` | `town` | `town` はデモの町、`dev` はテスト用の小さな町 |
 | `OVERHEARTH_DEV_ENDPOINTS` | 未設定 | `1` にすると `POST /dev/tick` が使える（連携済みの家のトークンが必要。30秒に1回まで） |
 | `OVERHEARTH_STORE` | `memory` | `dynamo` にすると DynamoDB（`OVERHEARTH_TABLE`）を使う |
@@ -101,7 +114,7 @@ npm run build:town   # backend/src/overhearth/ui/town.html に出力
 
 | 環境変数 | 既定値 | 意味 |
 |---|---|---|
-| `OVERHEARTH_ASSISTANT` | `OVERHEARTH_DIALOGUE` に従う | `bedrock` にすると Alexa の層を Bedrock で動かす。それ以外は簡単なキーワードの規則 |
+| `OVERHEARTH_ASSISTANT` | `OVERHEARTH_DIALOGUE` に従う | `bedrock` にすると Alexa の層を Bedrock で、`anthropic` にすると Claude API で動かす。それ以外は簡単なキーワードの規則 |
 | `VITE_BACKEND_URL`（web） | `http://127.0.0.1:8000` | バックエンドの URL |
 | `VITE_DEV_TICK`（web） | 未設定 | `1` にすると「Advance town time」ボタンを表示する |
 

@@ -1,5 +1,6 @@
 from overhearth.engine.dialogue import (
     BedrockDialogue,
+    ClaudeDialogue,
     DialogueGenerator,
     FeaturedDialogue,
     TemplateDialogue,
@@ -9,6 +10,7 @@ from overhearth.engine.tick import TickResult, run_tick
 
 __all__ = [
     "BedrockDialogue",
+    "ClaudeDialogue",
     "DialogueGenerator",
     "FeaturedDialogue",
     "TemplateDialogue",
