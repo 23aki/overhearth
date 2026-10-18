@@ -41,6 +41,28 @@ uv run python scripts/measure_latency.py --token demo-tokyo
 The local server starts with a small simulated town. Demo households are selected with a bearer
 token (`demo-tokyo`, `demo-osaka`).
 
+### Town engine
+
+Each tick, avatars that are out pair up, talk, and pass on what their homes shared. Dialogue is
+generated with [Strands Agents](https://strandsagents.com) on Amazon Bedrock (Claude Haiku 5.5 by
+default), or with a fixed template offline.
+
+```sh
+uv run python -m overhearth.engine --ticks 2              # offline, template dialogue
+uv run python -m overhearth.engine --ticks 1 --bedrock    # Bedrock (uses your AWS credentials)
+
+# Advance town time from the running server (development only):
+OVERHEARTH_DEV_ENDPOINTS=1 OVERHEARTH_DIALOGUE=bedrock uv run python -m overhearth
+curl -X POST http://127.0.0.1:8000/dev/tick
+```
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `OVERHEARTH_DIALOGUE` | `template` | `bedrock` to generate dialogue with Strands Agents on Bedrock |
+| `OVERHEARTH_BEDROCK_MODEL` | `global.anthropic.claude-haiku-5-5` | Bedrock model or inference profile id |
+| `OVERHEARTH_DEV_ENDPOINTS` | unset | `1` enables `POST /dev/tick` |
+| `AWS_REGION` | `us-east-1` | Region for Bedrock |
+
 ## Data and privacy
 
 - Only what a person explicitly agrees to share leaves their home, and contact details are

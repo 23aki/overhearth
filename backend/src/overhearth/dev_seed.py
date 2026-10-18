@@ -81,6 +81,7 @@ def seeded_store() -> MemoryStore:
         },
         context=PacketContext(topics=["cooking", "eggs", "spinach"], region="Osaka"),
         consented_at=now - timedelta(days=3),
+        created_at=now - timedelta(days=3),
     )
     rice_tip = Packet(
         id="pkt_leftover_rice",
@@ -92,6 +93,7 @@ def seeded_store() -> MemoryStore:
         },
         context=PacketContext(topics=["cooking", "rice"], region="Washington"),
         consented_at=now - timedelta(days=2),
+        created_at=now - timedelta(days=2),
     )
     store.add_packet(egg_tip)
     store.add_packet(rice_tip)
@@ -104,13 +106,14 @@ def seeded_store() -> MemoryStore:
                 payload={"what_helped": "the ten-minute egg and spinach dinner", "tip_id": egg_tip.id},
                 refs=[egg_tip.id],
                 consented_at=now - timedelta(hours=20 - i),
+                created_at=now - timedelta(hours=20 - i),
             )
         )
 
     store.add_town_events(
         [
             TownEvent(
-                tick=1,
+                tick=0,
                 at=now - timedelta(hours=6),
                 type="encounter",
                 actors=[tokyo.id, osaka.id],
@@ -118,7 +121,7 @@ def seeded_store() -> MemoryStore:
                 refs=[egg_tip.id],
             ),
             TownEvent(
-                tick=1,
+                tick=0,
                 at=now - timedelta(hours=6),
                 type="thanks_flow",
                 actors=[seattle.id, osaka.id],

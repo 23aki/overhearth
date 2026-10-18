@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import os
+from dataclasses import asdict
 
+import anyio
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.types import ASGIApp
 
 from overhearth.dev_seed import seeded_store
+from overhearth.engine import dialogue_from_env, run_tick
 from overhearth.mcp_server import build_server
 from overhearth.store import Store
 
@@ -22,11 +25,22 @@ def _store_from_env() -> Store:
 
 
 def create_app(store: Store | None = None) -> ASGIApp:
-    server = build_server(store or _store_from_env())
+    if store is None:
+        store = _store_from_env()
+    server = build_server(store)
 
     @server.custom_route("/health", methods=["GET"])
     async def health(_: Request) -> JSONResponse:
         return JSONResponse({"status": "ok"})
+
+    if os.environ.get("OVERHEARTH_DEV_ENDPOINTS") == "1":
+        dialogue = dialogue_from_env()
+
+        @server.custom_route("/dev/tick", methods=["POST"])
+        async def dev_tick(_: Request) -> JSONResponse:
+            """Advance town time once. Development and demo only, never enabled by default."""
+            result = await anyio.to_thread.run_sync(lambda: run_tick(store, dialogue))
+            return JSONResponse(asdict(result))
 
     app = server.streamable_http_app(
         streamable_http_path="/mcp",

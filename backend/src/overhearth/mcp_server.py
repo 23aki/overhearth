@@ -23,6 +23,12 @@ from overhearth.store import Store
 TOWN_UI_URI = "ui://overhearth/town.html"
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=False)
+REPORT_ONCE = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False)
+"""town_report marks what it read out as heard, so the next report only has news."""
+
+REPORT_PRIORITY = {"thanks_return": 0, "answer": 1, "tip": 2, "question": 3, "trend": 4}
+MAX_SPOKEN_ITEMS = 4
+"""Keeps the spoken report well under the 30 second limit for an Alexa+ voice response."""
 APPEND_ONLY = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False)
 
 
@@ -220,15 +226,22 @@ def build_server(store: Store) -> MCPServer:
             "met, know-how it brought back, what other homes are thankful for, and thanks that came "
             "back for things this home shared."
         ),
-        annotations=READ_ONLY,
+        annotations=REPORT_ONCE,
     )
     def town_report(ctx: Context) -> ReportResult:
         household = _household(ctx, store)
         report = store.latest_report(household.id)
         if report is None or not report.items:
             return ReportResult(speech=f"It's been quiet in town. {household.avatar_name} is just looking around.")
+        items = sorted(report.items, key=lambda item: REPORT_PRIORITY.get(item.kind, len(REPORT_PRIORITY)))
+        spoken = items[:MAX_SPOKEN_ITEMS]
         met = f"I ran into {', '.join(report.met)}. " if report.met else ""
-        body = " ".join(item.text for item in report.items)
-        return ReportResult(speech=f"{met}{body}", met=report.met, items=report.items)
+        more = " There's more on the town map." if len(items) > len(spoken) else ""
+        store.mark_report_heard(household.id, utcnow())
+        return ReportResult(
+            speech=f"{met}{' '.join(item.text for item in spoken)}{more}",
+            met=report.met,
+            items=items,
+        )
 
     return mcp

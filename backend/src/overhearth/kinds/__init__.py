@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from overhearth.kinds.base import KindHandler, scrub
+from overhearth.kinds.base import Carry, Effect, Event, KindHandler, ReportLine, TickContext, scrub
 from overhearth.kinds.builtin import Question, Thanks, Tip
 
 _registry: dict[str, KindHandler] = {}
@@ -28,4 +28,15 @@ def all_kinds() -> list[str]:
 for _handler in (Thanks(), Tip(), Question()):
     register(_handler)
 
-__all__ = ["KindHandler", "all_kinds", "get", "register", "scrub"]
+__all__ = [
+    "Carry",
+    "Effect",
+    "Event",
+    "KindHandler",
+    "ReportLine",
+    "TickContext",
+    "all_kinds",
+    "get",
+    "register",
+    "scrub",
+]

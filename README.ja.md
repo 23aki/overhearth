@@ -36,6 +36,26 @@ uv run python scripts/measure_latency.py --token demo-tokyo
 
 ローカルのサーバーは、模擬の小さな町の状態で起動します。デモの家は Bearer トークンで選びます（`demo-tokyo`、`demo-osaka`）。
 
+### 町のエンジン
+
+町の時間が1つ進むごとに（tick）、町に出ている分身どうしが組になって話し、それぞれの家が共有したものを受け渡します。会話は Amazon Bedrock 上の [Strands Agents](https://strandsagents.com) で生成します（既定のモデルは Claude Haiku 5.5）。オフラインでは決まった文面を使います。
+
+```sh
+uv run python -m overhearth.engine --ticks 2              # オフライン（決まった文面）
+uv run python -m overhearth.engine --ticks 1 --bedrock    # Bedrock（手元の AWS の認証情報を使う）
+
+# 起動中のサーバーで町の時間を進める（開発用）:
+OVERHEARTH_DEV_ENDPOINTS=1 OVERHEARTH_DIALOGUE=bedrock uv run python -m overhearth
+curl -X POST http://127.0.0.1:8000/dev/tick
+```
+
+| 環境変数 | 既定値 | 意味 |
+|---|---|---|
+| `OVERHEARTH_DIALOGUE` | `template` | `bedrock` にすると、Bedrock 上の Strands Agents で会話を生成する |
+| `OVERHEARTH_BEDROCK_MODEL` | `global.anthropic.claude-haiku-5-5` | Bedrock のモデル ID か推論プロファイル ID |
+| `OVERHEARTH_DEV_ENDPOINTS` | 未設定 | `1` にすると `POST /dev/tick` が使える |
+| `AWS_REGION` | `us-east-1` | Bedrock のリージョン |
+
 ## データとプライバシー
 
 - 家の外に出るのは、本人が共有に同意したものだけです。保存する前に、連絡先などの情報は取り除きます。

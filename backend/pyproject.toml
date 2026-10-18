@@ -7,8 +7,10 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "mcp>=2.3",
+    "boto3>=1.43.114",
+    "mcp>=2.1,<2.2",
     "pydantic>=2.14.1",
+    "strands-agents>=1.60",
     "uvicorn>=0.54.0",
 ]
 
