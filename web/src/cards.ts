@@ -67,6 +67,24 @@ function thanksCard(data: Data): HTMLElement {
   return node;
 }
 
+function emailCard(data: Data): HTMLElement {
+  const to = typeof data.to === "string" ? data.to : null;
+  const subject = String(data.subject ?? "");
+  if (data.needs_confirmation) {
+    return card(
+      "Send this in writing?",
+      el("p", "quote", subject),
+      el("p", "muted", to ? `To ${to}. Alexa sends it only after you say yes.` : "This home only shows the email on screen."),
+    );
+  }
+  if (!data.body) return card("Nothing to send", el("p", "muted", String(data.speech ?? "")));
+  const node = card(data.sent ? `Sent to ${to}` : "Here's the email (not sent)", el("p", "quote", subject));
+  node.classList.add("card-email");
+  node.append(el("pre", "email-body", String(data.body)));
+  if (!data.sent) node.append(el("p", "muted", "Demo homes never send email. A linked home with an address gets it for real."));
+  return node;
+}
+
 export function renderToolEvent(panel: HTMLElement, event: ToolEvent): void {
   const data = event.outcome.structured ?? {};
   if (event.outcome.isError) {
@@ -85,6 +103,9 @@ export function renderToolEvent(panel: HTMLElement, event: ToolEvent): void {
       break;
     case "record_thanks":
       panel.replaceChildren(thanksCard(data));
+      break;
+    case "email_report":
+      panel.replaceChildren(emailCard(data));
       break;
     default:
       break;

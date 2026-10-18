@@ -12,6 +12,7 @@ from typing import Any, Protocol
 
 from overhearth.models import (
     AuthGrant,
+    DeliverySettings,
     Household,
     IssuedToken,
     KnowledgeEntry,
@@ -82,7 +83,15 @@ class Store(Protocol):
         """
         ...
 
-    def mark_report_heard(self, household_id: str, at: datetime) -> None: ...
+    def mark_report_heard(self, household_id: str, at: datetime) -> None:
+        """Start a new pending report, keeping the one just heard as the last heard report."""
+        ...
+
+    def last_heard_report(self, household_id: str) -> Report | None: ...
+
+    def get_delivery(self, household_id: str) -> DeliverySettings | None: ...
+
+    def put_delivery(self, settings: DeliverySettings) -> None: ...
 
     def carried(self, household_id: str) -> list[str]:
         """Packet ids the household's avatar has picked up in town, oldest first."""

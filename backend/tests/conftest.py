@@ -4,6 +4,7 @@ import socket
 import threading
 import time
 from collections.abc import Iterator
+from contextlib import contextmanager
 
 import boto3
 import pytest
@@ -43,10 +44,27 @@ def store(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> It
         yield dynamo
 
 
+class FakeMailer:
+    """Records emails instead of sending them."""
+
+    sends = True
+
+    def __init__(self) -> None:
+        self.outbox: list[tuple[str, str, str]] = []
+
+    def send(self, to: str, subject: str, body: str) -> None:
+        self.outbox.append((to, subject, body))
+
+
 @pytest.fixture
-def server_url(store: Store) -> Iterator[str]:
+def mailer() -> FakeMailer:
+    return FakeMailer()
+
+
+@contextmanager
+def serve(app) -> Iterator[str]:
     port = _free_port()
-    config = uvicorn.Config(create_app(store), host="127.0.0.1", port=port, log_level="warning")
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
     server = uvicorn.Server(config)
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
@@ -55,6 +73,21 @@ def server_url(store: Store) -> Iterator[str]:
         if time.monotonic() > deadline:
             raise RuntimeError("test server did not start")
         time.sleep(0.05)
-    yield f"http://127.0.0.1:{port}/mcp"
-    server.should_exit = True
-    thread.join(timeout=5)
+    try:
+        yield f"http://127.0.0.1:{port}/mcp"
+    finally:
+        server.should_exit = True
+        thread.join(timeout=5)
+
+
+@pytest.fixture
+def server_url(store: Store) -> Iterator[str]:
+    with serve(create_app(store)) as url:
+        yield url
+
+
+@pytest.fixture
+def mail_server_url(store: Store, mailer: FakeMailer) -> Iterator[str]:
+    """A server whose emails go to the `mailer` fixture's outbox."""
+    with serve(create_app(store, mailer)) as url:
+        yield url

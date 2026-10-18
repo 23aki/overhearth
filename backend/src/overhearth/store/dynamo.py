@@ -8,6 +8,8 @@ model's JSON in `data`, so DynamoDB never has to understand the models:
 | HOUSEHOLD           | household id               | a household                             |
 | PACKET              | packet id                  | a packet (attribute `kind` for filters) |
 | REPORT              | household id               | the household's pending report          |
+| HEARD               | household id               | the report the household heard last     |
+| DELIVERY            | household id               | private delivery settings (email)       |
 | CARRIED             | household id               | packet ids the avatar carries           |
 | EVENT               | tick#seq#event id          | a town event                            |
 | CLOCK               | -                          | the town clock                          |
@@ -32,6 +34,7 @@ from boto3.dynamodb.conditions import Attr, Key
 
 from overhearth.models import (
     AuthGrant,
+    DeliverySettings,
     Household,
     IssuedToken,
     KnowledgeEntry,
@@ -193,7 +196,21 @@ class DynamoStore:
         self.put_report(report.model_copy(update=update))
 
     def mark_report_heard(self, household_id: str, at: datetime) -> None:
+        heard = self.latest_report(household_id)
+        if heard and heard.items:
+            self._put("HEARD", household_id, heard.model_dump_json())
         self.put_report(Report(household_id=household_id, generated_at=at, since=at))
+
+    def last_heard_report(self, household_id: str) -> Report | None:
+        data = self._get("HEARD", household_id)
+        return Report.model_validate_json(data) if data else None
+
+    def get_delivery(self, household_id: str) -> DeliverySettings | None:
+        data = self._get("DELIVERY", household_id)
+        return DeliverySettings.model_validate_json(data) if data else None
+
+    def put_delivery(self, settings: DeliverySettings) -> None:
+        self._put("DELIVERY", settings.household_id, settings.model_dump_json())
 
     # avatars and the town clock -----------------------------------------------
 

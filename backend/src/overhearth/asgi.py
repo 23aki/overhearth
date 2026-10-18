@@ -14,6 +14,7 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp
 
 from overhearth.assistant import RateLimiter, TurnRequest, assistant_from_env, tool_defs, trim
+from overhearth.delivery import Mailer, mailer_from_env
 from overhearth.engine import dialogue_from_env, run_tick
 from overhearth.mcp_server import build_server
 from overhearth.oauth import BearerGate, install_oauth_routes
@@ -25,10 +26,11 @@ log = logging.getLogger(__name__)
 DEV_TICK_INTERVAL_SECONDS = float(os.environ.get("OVERHEARTH_DEV_TICK_INTERVAL", "30"))
 
 
-def create_app(store: Store | None = None) -> ASGIApp:
+def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGIApp:
     if store is None:
         store = store_from_env()
-    server = build_server(store)
+    mailer = mailer or mailer_from_env()
+    server = build_server(store, mailer)
 
     @server.custom_route("/health", methods=["GET"])
     async def health(_: Request) -> JSONResponse:
@@ -77,7 +79,7 @@ def create_app(store: Store | None = None) -> ASGIApp:
             if tick_lock.locked() or not tick_limiter.allow("town"):
                 return JSONResponse({"error": "The town is still busy. Try again in a moment."}, status_code=429)
             async with tick_lock:
-                result = await anyio.to_thread.run_sync(lambda: run_tick(store, dialogue))
+                result = await anyio.to_thread.run_sync(lambda: run_tick(store, dialogue, mailer=mailer))
             return JSONResponse(asdict(result))
 
     app = server.streamable_http_app(

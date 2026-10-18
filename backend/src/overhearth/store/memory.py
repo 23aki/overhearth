@@ -7,6 +7,7 @@ from typing import Any
 
 from overhearth.models import (
     AuthGrant,
+    DeliverySettings,
     Household,
     IssuedToken,
     KnowledgeEntry,
@@ -34,6 +35,8 @@ class MemoryStore:
         self._tokens: dict[str, IssuedToken] = {}
         """Token hash to what it stands for."""
         self._codes: dict[str, AuthGrant] = {}
+        self._heard: dict[str, Report] = {}
+        self._delivery: dict[str, DeliverySettings] = {}
         self._packets: dict[str, Packet] = {}
         self._reports: dict[str, Report] = {}
         self._events: list[TownEvent] = []
@@ -135,7 +138,19 @@ class MemoryStore:
         )
 
     def mark_report_heard(self, household_id: str, at: datetime) -> None:
+        heard = self._reports.get(household_id)
+        if heard and heard.items:
+            self._heard[household_id] = heard
         self._reports[household_id] = Report(household_id=household_id, generated_at=at, since=at)
+
+    def last_heard_report(self, household_id: str) -> Report | None:
+        return self._heard.get(household_id)
+
+    def get_delivery(self, household_id: str) -> DeliverySettings | None:
+        return self._delivery.get(household_id)
+
+    def put_delivery(self, settings: DeliverySettings) -> None:
+        self._delivery[settings.household_id] = settings
 
     # avatars and the town clock ---------------------------------------------
 

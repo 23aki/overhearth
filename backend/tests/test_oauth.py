@@ -188,3 +188,20 @@ def test_public_client_cannot_use_client_credentials(http):
         "/token", data={"grant_type": "client_credentials"}, headers={"Authorization": f"Basic {basic}"}
     )
     assert response.json()["error"] == "unauthorized_client"
+
+
+def test_linking_can_save_an_email_for_written_news(http, store):
+    verifier = secrets.token_urlsafe(48)
+    code = _code(_authorize(http, verifier, email="nori@example.com", notify="on"))
+    token = _exchange(http, code, verifier).json()["access_token"]
+    home = store.household_for_token(token)
+    settings = store.get_delivery(home.id)
+    assert settings.email == "nori@example.com"
+    assert settings.notify_thanks is True
+    assert "nori@example.com" not in home.model_dump_json()
+
+
+def test_a_bad_email_shows_the_form_again(http):
+    response = _authorize(http, secrets.token_urlsafe(48), email="not an email")
+    assert response.status_code == 400
+    assert "email address" in response.text

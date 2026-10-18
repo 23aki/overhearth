@@ -31,8 +31,9 @@ from starlette.responses import HTMLResponse, JSONResponse, RedirectResponse, Re
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from overhearth.assistant import RateLimiter
+from overhearth.delivery import valid_email
 from overhearth.kinds.base import scrub
-from overhearth.models import AuthGrant, Household, IssuedToken, new_id, utcnow
+from overhearth.models import AuthGrant, DeliverySettings, Household, IssuedToken, new_id, utcnow
 from overhearth.store import Store
 
 SCOPES = ("mcp:tools", "mcp:resources")
@@ -243,6 +244,9 @@ def install_oauth_routes(server, store: Store, clients: dict[str, OAuthClient] |
             errors.append("Describe your home in a few words, like “a family flat in Kyoto”.")
         if len(region) < 2:
             errors.append("Add a city or region.")
+        email = params.get("email", "").strip()
+        if email and not valid_email(email):
+            errors.append("That email address doesn't look right. You can also leave it empty.")
         if errors:
             message = "".join(f"<p class='error'>{html.escape(e)}</p>" for e in errors)
             return _page("Link your home to Overhearth", message + _consent_form(client, params), status=400)
@@ -261,6 +265,10 @@ def install_oauth_routes(server, store: Store, clients: dict[str, OAuthClient] |
             avatar_name=avatar,
         )
         store.add_household(household)
+        if email:
+            store.put_delivery(
+                DeliverySettings(household_id=household.id, email=email, notify_thanks=params.get("notify") == "on")
+            )
         code = secrets.token_urlsafe(32)
         store.put_auth_code(
             code,
@@ -397,6 +405,11 @@ home, and contact details are removed. Other homes see the description below, ne
     placeholder="a family flat in Kyoto"></label>
   <label>City or region <input name="region" maxlength="40" required value="{value("region")}"
     placeholder="Kyoto"></label>
+  <label>Email for town news in writing (optional) <input name="email" type="email" maxlength="120"
+    value="{value("email")}" placeholder="you@example.com"></label>
+  <label class="check"><input type="checkbox" name="notify"{" checked" if params.get("notify") == "on" else ""}>
+    Email me when know-how I shared is thanked (at most once a day)</label>
+  <p class="muted">Your email stays private to your home. Alexa reads back what it will send and asks first.</p>
   <div class="actions">
     <button name="decision" value="allow" type="submit">Link my home</button>
     <button name="decision" value="deny" type="submit" class="ghost" formnovalidate>Not now</button>
@@ -421,6 +434,7 @@ def _page(title: str, body: str, *, status: int = 200) -> HTMLResponse:
   label {{ display: grid; gap: 4px; margin: 14px 0; font-size: 14px; color: #c9d1de; }}
   input {{ font: inherit; padding: 9px 12px; border-radius: 10px; border: 1px solid #2c3647;
     background: #0d1118; color: inherit; }}
+  label.check {{ display: flex; gap: 8px; align-items: center; }}
   .actions {{ display: flex; gap: 10px; margin-top: 20px; }}
   button {{ font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 10px; border: 0;
     background: #34c6f4; color: #04121a; cursor: pointer; }}

@@ -149,6 +149,25 @@ In the web client, pick "Link your own home…" in the home menu to run the flow
 | `OVERHEARTH_WEB_REDIRECTS` | `http://localhost:5173/,http://127.0.0.1:5173/` | Redirect URIs allowed for the web client |
 | `OVERHEARTH_OAUTH_CLIENTS` | unset | JSON list of confidential clients: `client_id`, `client_secret`, `redirect_uris`, `name`. Keep it out of the repository |
 
+## Delivery in writing (email)
+
+Anything that acts outside the conversation follows "read back and confirm → do it → confirm in
+writing".
+
+- "Email me that": `email_report` reads back where it will go (`t***@example.com`) and waits for a
+  yes. Then it sends the town news and shows the same email on screen as the written confirmation.
+- A linked home can opt in to "email me when know-how I shared is thanked". The tick sends at most
+  one such email a day.
+- Demo homes never send. They show the email that would go out, so judges need no accounts.
+- The address is optional and asked for only when linking a home. It is kept with that home's
+  private settings, never in the town data, and is masked when spoken.
+- Sending uses Amazon SES and is off unless configured. Without it, every email is shown, not sent.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `OVERHEARTH_MAILER` | unset (dry run) | `ses` to send with Amazon SES |
+| `OVERHEARTH_MAIL_FROM` | unset | Verified SES sender address (CDK: `-c mailFrom=...`) |
+
 ## Deploy to AWS
 
 ```text
@@ -188,6 +207,7 @@ cd ../backend && AWS_PROFILE=<deploy-profile> uv run python -m overhearth.store.
 | `provisionedConcurrency` | `0` | Warm API instances. `1` keeps the first call fast, at a small hourly cost |
 | `lambdaAdapterLayerVersion` | `25` | Version of the public Lambda Web Adapter layer |
 | `bedrockModel` | `global.anthropic.claude-haiku-5-5` | Model or inference profile for the Alexa layer and the avatars |
+| `mailFrom` | empty (dry run) | Verified SES sender. Set it to send emails to linked homes |
 
 ## Data and privacy
 

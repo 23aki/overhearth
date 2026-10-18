@@ -122,6 +122,21 @@ Web クライアントでは、家の選択メニューの「Link your own home�
 | `OVERHEARTH_WEB_REDIRECTS` | `http://localhost:5173/,http://127.0.0.1:5173/` | Web クライアントに許すリダイレクト先 |
 | `OVERHEARTH_OAUTH_CLIENTS` | 未設定 | 機密クライアントの JSON の配列（`client_id`、`client_secret`、`redirect_uris`、`name`）。リポジトリには入れない |
 
+## 書面で届ける（メール）
+
+会話の外で何かをする操作は、すべて「読み上げて確認 → 実行 → 書面で確認」の順にします。
+
+- 「それをメールして」と言うと、`email_report` が送り先（`t***@example.com`）を読み上げ、了承を待ちます。了承の後に町の知らせを送り、同じメールを画面にも出して書面での確認にします。
+- 連携した家は「自分が共有した知恵に感謝が届いたらメールする」を選べます。町の時間の処理が送るのは、1日に1通までです。
+- デモの家は送信しません。送るはずのメールを画面に出すだけなので、審査員はアカウントを用意する必要がありません。
+- メールアドレスは任意で、家を連携するときにだけ尋ねます。その家の非公開の設定として保存し、町のデータには入れません。読み上げるときは一部を伏せます。
+- 送信には Amazon SES を使います。設定しない限り送信はせず、すべてのメールを画面に出すだけにします。
+
+| 環境変数 | 既定値 | 意味 |
+|---|---|---|
+| `OVERHEARTH_MAILER` | 未設定（送信しない） | `ses` にすると Amazon SES で送る |
+| `OVERHEARTH_MAIL_FROM` | 未設定 | SES で検証済みの送信元アドレス（CDK では `-c mailFrom=...`） |
+
 ## AWS へデプロイする
 
 ```text
@@ -157,6 +172,7 @@ cd ../backend && AWS_PROFILE=<deploy-profile> uv run python -m overhearth.store.
 | `provisionedConcurrency` | `0` | 待機させておく API のインスタンス数。`1` にすると最初の呼び出しも速いが、時間あたりの費用が少しかかる |
 | `lambdaAdapterLayerVersion` | `25` | 公開されている Lambda Web Adapter のレイヤーのバージョン |
 | `bedrockModel` | `global.anthropic.claude-haiku-5-5` | Alexa の層と分身の会話に使うモデル、または推論プロファイル |
+| `mailFrom` | 空（送信しない） | SES で検証済みの送信元。設定すると、連携した家にメールを送る |
 
 ## データとプライバシー
 
