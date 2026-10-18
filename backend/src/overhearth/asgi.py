@@ -12,8 +12,8 @@ from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import ValidationError
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse
-from starlette.types import ASGIApp
+from starlette.responses import JSONResponse, PlainTextResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from overhearth.assistant import RateLimiter, TurnRequest, assistant_from_env, tool_defs, trim
 from overhearth.delivery import Mailer, mailer_from_env
@@ -49,6 +49,27 @@ def transport_security() -> TransportSecuritySettings | None:
         allowed_hosts=[netloc, f"{netloc}:*", *LOCAL_HOSTS],
         allowed_origins=[o for o in origins if o != "*"] + LOCAL_ORIGINS,
     )
+
+
+class NoStandaloneStream:
+    """Answer GET /mcp with 405: this server is stateless and never sends server-initiated messages.
+
+    The MCP spec allows a server without a GET stream to say so with 405. Without this, the
+    client's GET waits for a stream that API Gateway and Lambda cannot deliver, times out, and
+    takes the instance down with it.
+    """
+
+    def __init__(self, app: ASGIApp, *, path: str = "/mcp") -> None:
+        self.app = app
+        self.path = path
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and scope["method"] == "GET" and scope["path"].rstrip("/") == self.path:
+            await PlainTextResponse("Method Not Allowed", status_code=405, headers={"Allow": "POST, DELETE"})(
+                scope, receive, send
+            )
+            return
+        await self.app(scope, receive, send)
 
 
 def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGIApp:
@@ -119,7 +140,7 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
     )
     origins = [o.strip() for o in os.environ.get("OVERHEARTH_ALLOWED_ORIGINS", "*").split(",") if o.strip()]
     return CORSMiddleware(
-        BearerGate(app, store),
+        BearerGate(NoStandaloneStream(app), store),
         allow_origins=origins,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["authorization", "content-type", "mcp-protocol-version", "mcp-session-id"],

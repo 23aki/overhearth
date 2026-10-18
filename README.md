@@ -12,6 +12,10 @@ Built for the Amazon Developer "Build, Ship, Shape" hackathon (Alexa+ track).
 
 > Status: work in progress.
 
+**Try it:** <https://do7sfung0ly8x.cloudfront.net>. Pick a demo home; no sign-in needed. The MCP
+endpoint is `https://lb45tdkpz4.execute-api.us-east-1.amazonaws.com/mcp` (bearer token
+`demo-tokyo`, `demo-osaka`, `demo-seattle` or `demo-austin`).
+
 ## How it fits Alexa+
 
 - `backend/` is a self-hosted MCP server (spec 2025-11-25, Streamable HTTP) with an MCP App
