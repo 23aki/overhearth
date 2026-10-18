@@ -12,7 +12,7 @@ import logging
 import random
 
 from overhearth.dev_seed import seeded_store
-from overhearth.engine import BedrockDialogue, ClaudeDialogue, TemplateDialogue, run_tick
+from overhearth.engine import BedrockDialogue, ClaudeDialogue, FeaturedDialogue, TemplateDialogue, run_tick
 from overhearth.town_seed import seeded_town
 
 
@@ -21,6 +21,9 @@ def main() -> None:
     parser.add_argument("--ticks", type=int, default=1)
     parser.add_argument("--bedrock", action="store_true")
     parser.add_argument("--anthropic", action="store_true")
+    parser.add_argument(
+        "--all-encounters", action="store_true", help="use the model for every encounter, not only demo homes'"
+    )
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--small", action="store_true", help="use the tiny dev town instead of the demo town")
     parser.add_argument("--show", type=int, default=12, help="how many recent events to print")
@@ -29,6 +32,8 @@ def main() -> None:
 
     store = seeded_store() if args.small else seeded_town()
     dialogue = ClaudeDialogue() if args.anthropic else BedrockDialogue() if args.bedrock else TemplateDialogue()
+    if (args.anthropic or args.bedrock) and not args.all_encounters:
+        dialogue = FeaturedDialogue(dialogue)  # as the server does, to keep model calls down
     rng = random.Random(args.seed)
     for _ in range(args.ticks):
         result = run_tick(store, dialogue, rng=rng, out_ratio=1.0)
