@@ -120,6 +120,20 @@ How a turn works:
 3. The reply is spoken with the browser's speech synthesis. Voice input uses the Web Speech API
    where available; typing always works.
 
+### The town, as a little game world
+
+The town is drawn as a top-down pixel-art world with PixiJS (`web/townkit/`). All art is drawn
+in code. Houses stand along the roads around a plaza. Each home's avatar, a small round creature
+with Echo's light ring on its head, walks out to meet another avatar halfway, says its lines in
+speech bubbles and hands over tips and questions. Thanks then fly home as hearts, and the home
+that receives them lights up. Windows glow with how often a home's know-how was thanked, and
+the town follows day and night.
+
+- **Watch page** (`/watch.html`): the whole town, live, without going through Alexa. New town
+  time is replayed as soon as it happens. Pick a home to follow its avatar (or open
+  `/watch.html?follow=hh_osaka`). It reads `GET /town`, which needs no household token.
+- **Inside Alexa**: the MCP App below uses the same renderer and follows your own avatar.
+
 ### The town view (MCP App)
 
 Say "show me the town". `open_town` points at the `ui://overhearth/town.html` resource, and the page

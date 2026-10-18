@@ -1,0 +1,23 @@
+:root { --ink: #f2f4f8; --muted: #9aa4b5; --accent: #34c6f4; --warm: #ffb547; --line: rgba(255, 255, 255, 0.12); color-scheme: dark; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: #0d1118; color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; display: flex; flex-direction: column; }
+.bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; flex-wrap: wrap; border-bottom: 1px solid var(--line); }
+.brand { font-weight: 700; font-size: 18px; color: var(--ink); text-decoration: none; }
+.badge { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; }
+.follow { display: flex; align-items: center; gap: 6px; color: var(--muted); margin-left: auto; }
+select, button { font: inherit; border-radius: 8px; padding: 6px 12px; border: 1px solid var(--line); background: #161d29; color: var(--ink); }
+button { background: var(--accent); color: #04121a; border: 0; font-weight: 600; cursor: pointer; }
+button.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+.status { color: var(--muted); font-size: 12px; min-width: 180px; text-align: right; }
+.game { position: relative; flex: 1; min-height: 0; }
+.town { position: absolute; inset: 0; }
+.caption { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); margin: 0; max-width: min(900px, calc(100% - 32px)); padding: 8px 14px; border-radius: 10px; background: rgba(13, 17, 24, 0.82); border: 1px solid var(--line); font-size: 14px; pointer-events: none; }
+.caption:empty { display: none; }
+.card { position: absolute; top: 16px; right: 16px; width: 260px; padding: 12px 14px; border-radius: 12px; background: rgba(22, 29, 41, 0.92); border: 1px solid var(--line); }
+.card h2 { margin: 0 0 4px; font-size: 16px; }
+.card p { margin: 2px 0; }
+.card .muted { color: var(--muted); font-size: 13px; }
+.card button { margin-top: 8px; }
+.foot { padding: 8px 16px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); display: flex; gap: 12px; justify-content: center; }
+.foot a { color: var(--accent); }

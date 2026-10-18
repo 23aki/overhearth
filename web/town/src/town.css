@@ -20,7 +20,7 @@ body {
 .app { display: flex; flex-direction: column; height: 100%; padding: 12px; gap: 10px; }
 
 .map-wrap { position: relative; flex: none; }
-#map { width: 100%; height: auto; max-height: 64vh; display: block; background: radial-gradient(ellipse at center, #182235, #10151f 70%); border-radius: 12px; }
+.map { width: 100%; height: min(64vh, 62vw); border-radius: 12px; overflow: hidden; background: #2b4a2a; }
 .caption {
   margin: 6px 4px 0;
   font-size: 13px;

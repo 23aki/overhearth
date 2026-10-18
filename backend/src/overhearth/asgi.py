@@ -53,7 +53,7 @@ def transport_security() -> TransportSecuritySettings | None:
 
 
 ACCESS_HEADER = "x-overhearth-access"
-GATED_PREFIXES = ("/mcp", "/assistant/", "/token", "/dev/")
+GATED_PREFIXES = ("/mcp", "/assistant/", "/token", "/dev/", "/town")
 
 
 class AccessGate:
@@ -109,6 +109,16 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
         return JSONResponse({"status": "ok"})
 
     install_oauth_routes(server, store)
+
+    @server.custom_route("/town", methods=["GET"])
+    async def town(_: Request) -> JSONResponse:
+        """The whole town for the watch page: homes, how often each was thanked, recent events.
+
+        Only what the town view already shows: public labels and avatar names, never contact
+        details or tokens.
+        """
+        state = await anyio.to_thread.run_sync(store.town_state)
+        return JSONResponse(state, headers={"Cache-Control": "no-store"})
 
     assistant = assistant_from_env()
     limiter = RateLimiter()

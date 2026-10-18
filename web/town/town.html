@@ -9,11 +9,12 @@
   <body>
     <div class="app">
       <div class="map-wrap">
-        <svg id="map" viewBox="0 0 800 520" role="img" aria-label="Map of the town and its homes"></svg>
+        <div id="map" class="map" role="img" aria-label="The town, with your Alexa's avatar"></div>
         <p id="caption" class="caption" aria-live="polite"></p>
       </div>
       <div class="bar">
         <button id="replay" type="button">Replay</button>
+        <button id="overview" type="button" class="ghost">Whole town</button>
         <button id="news" type="button" class="ghost">Ask Alexa for the news</button>
         <button id="expand" type="button" class="ghost" hidden>Full screen</button>
         <span id="status" class="status"></span>
