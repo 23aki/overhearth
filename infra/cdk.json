@@ -1,8 +1,8 @@
 {
   "app": "npx tsx bin/overhearth.ts",
   "context": {
-    "provisionedConcurrency": 0,
-    "demoTick": false,
+    "provisionedConcurrency": 1,
+    "demoTick": true,
     "lambdaAdapterLayerVersion": 25
   }
 }

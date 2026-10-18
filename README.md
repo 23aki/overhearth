@@ -217,15 +217,15 @@ cd backend && uv run python scripts/build_lambda.py
 cd ../web && npm ci && npm run build
 cd ../infra && npm ci
 npx cdk bootstrap --profile <deploy-profile>           # once per account and region
-npx cdk deploy --profile <deploy-profile> -c demoTick=true -c provisionedConcurrency=1
+npx cdk deploy --profile <deploy-profile>
 # load the demo town into the new table (TableName is printed by cdk deploy)
 cd ../backend && AWS_PROFILE=<deploy-profile> uv run python -m overhearth.store.dynamo --table <TableName>
 ```
 
 | Context (`-c`) | Default | Meaning |
 |---|---|---|
-| `demoTick` | `false` | Show "Advance town time". `POST /dev/tick` then needs a linked home's token and runs at most once per 30 seconds |
-| `provisionedConcurrency` | `0` | Warm API instances. `1` keeps the first call fast, at a small hourly cost |
+| `demoTick` | `true` | Show "Advance town time". `POST /dev/tick` then needs a linked home's token and runs at most once per 30 seconds |
+| `provisionedConcurrency` | `1` | Warm API instances. `1` keeps the first call fast (a cold start takes about 4 s), at a small hourly cost. `0` to save money |
 | `lambdaAdapterLayerVersion` | `25` | Version of the public Lambda Web Adapter layer |
 | `bedrockModel` | `global.anthropic.claude-haiku-5-5` | Model or inference profile for the Alexa layer and the avatars |
 | `mailFrom` | empty (dry run) | Verified SES sender. Set it to send emails to linked homes |
