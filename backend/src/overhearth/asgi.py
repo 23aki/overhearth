@@ -5,8 +5,10 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import asdict
+from urllib.parse import urlsplit
 
 import anyio
+from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import ValidationError
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
@@ -24,6 +26,29 @@ from overhearth.store.env import store_from_env
 log = logging.getLogger(__name__)
 
 DEV_TICK_INTERVAL_SECONDS = float(os.environ.get("OVERHEARTH_DEV_TICK_INTERVAL", "30"))
+
+
+LOCAL_HOSTS = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
+LOCAL_ORIGINS = ["http://127.0.0.1:*", "http://localhost:*", "http://[::1]:*"]
+MAX_TURN_BODY_BYTES = 64 * 1024
+"""A turn is a short conversation; anything bigger is refused before it reaches the model."""
+
+
+def transport_security() -> TransportSecuritySettings | None:
+    """DNS rebinding protection for /mcp that also accepts the deployed host and web origin.
+
+    Without OVERHEARTH_PUBLIC_URL the SDK's localhost-only default applies.
+    """
+    public = os.environ.get("OVERHEARTH_PUBLIC_URL")
+    if not public:
+        return None
+    netloc = urlsplit(public).netloc
+    origins = [o.strip() for o in os.environ.get("OVERHEARTH_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[netloc, f"{netloc}:*", *LOCAL_HOSTS],
+        allowed_origins=[o for o in origins if o != "*"] + LOCAL_ORIGINS,
+    )
 
 
 def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGIApp:
@@ -49,8 +74,11 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
             return JSONResponse({"error": "This Alexa account is not linked to Overhearth yet."}, status_code=401)
         if not limiter.allow(token):
             return JSONResponse({"error": "Too many requests. Try again later."}, status_code=429)
+        raw = await request.body()
+        if len(raw) > MAX_TURN_BODY_BYTES:
+            return JSONResponse({"error": "That conversation is too long."}, status_code=413)
         try:
-            body = TurnRequest.model_validate(await request.json())
+            body = TurnRequest.model_validate_json(raw)
         except (ValueError, ValidationError):
             return JSONResponse({"error": "Malformed turn."}, status_code=400)
         tools = tool_defs(await server.list_tools())
@@ -87,6 +115,7 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
         stateless_http=True,
         json_response=True,
         host=os.environ.get("OVERHEARTH_HOST", "127.0.0.1"),
+        transport_security=transport_security(),
     )
     origins = [o.strip() for o in os.environ.get("OVERHEARTH_ALLOWED_ORIGINS", "*").split(",") if o.strip()]
     return CORSMiddleware(

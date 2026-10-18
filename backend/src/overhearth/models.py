@@ -124,6 +124,9 @@ class AuthGrant(BaseModel):
     household_id: str
     scope: str
     expires_at: datetime
+    household: Household | None = None
+    """A new home to create when the code is exchanged, so abandoned links never fill the town."""
+    delivery: DeliverySettings | None = None
 
 
 class IssuedToken(BaseModel):
@@ -146,3 +149,6 @@ class DeliverySettings(BaseModel):
     notify_thanks: bool = False
     """Email the person when their shared know-how is thanked (at most once a day)."""
     last_thanks_email_at: datetime | None = None
+
+
+AuthGrant.model_rebuild()

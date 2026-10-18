@@ -90,15 +90,44 @@ class Assistant(Protocol):
     def turn(self, messages: list[Message], tools: list[ToolDef]) -> TurnResult: ...
 
 
+MAX_TOOL_CONTENT = 4000
+"""Serialized size cap for one tool result in the history."""
+
+
 def trim(messages: list[Message]) -> list[Message]:
-    """Cap history length and text size, and start on a user message."""
+    """Cap history length and sizes, start on a user message, and close dangling tool calls.
+
+    A tool call whose result never came back (the client failed mid-turn) gets an error result,
+    because the model API requires a result for every call.
+    """
     kept = messages[-MAX_MESSAGES:]
     while kept and kept[0].role != "user":
         kept = kept[1:]
+    repaired: list[Message] = []
+    open_calls: list[ToolCall] = []
+
+    def close_open_calls() -> None:
+        for call in open_calls:
+            repaired.append(
+                Message(role="tool", tool_call_id=call.id, name=call.name, content="No result.", is_error=True)
+            )
+        open_calls.clear()
+
     for message in kept:
         if message.text:
             message.text = message.text[:MAX_TEXT]
-    return kept
+        if message.role == "tool":
+            serialized = message.content if isinstance(message.content, str) else json.dumps(message.content)
+            if len(serialized) > MAX_TOOL_CONTENT:
+                message.content = serialized[:MAX_TOOL_CONTENT]
+            open_calls[:] = [c for c in open_calls if c.id != message.tool_call_id]
+        else:
+            close_open_calls()
+        repaired.append(message)
+        if message.role == "assistant" and message.tool_calls:
+            open_calls.extend(message.tool_calls)
+    close_open_calls()
+    return repaired
 
 
 # --- Bedrock -------------------------------------------------------------------

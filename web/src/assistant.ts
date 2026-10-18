@@ -59,7 +59,14 @@ export async function runTurn(
     }
     history.push({ role: "assistant", tool_calls: reply.tool_calls });
     for (const call of reply.tool_calls) {
-      const outcome = await mcp.callTool(call.name, call.arguments);
+      // Every tool call needs a result in the history, even when the call itself failed.
+      const outcome = await mcp.callTool(call.name, call.arguments).catch(
+        (error: unknown): ToolOutcome => ({
+          structured: null,
+          text: error instanceof Error ? error.message : "The tool did not answer.",
+          isError: true,
+        }),
+      );
       const event = { call, outcome };
       toolEvents.push(event);
       onTool?.(event);
