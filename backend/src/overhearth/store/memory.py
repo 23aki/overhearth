@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from overhearth.models import Household, KnowledgeEntry, Packet, Report, ReportItem, TownEvent
-from overhearth.text import MIN_RELEVANCE, relevance
+from overhearth.text import MIN_SEARCH_RELEVANCE, answers, relevance
 
 FIRST_TICK_LOOKBACK = timedelta(hours=1)
 """On the very first tick, aggregate what happened in the last hour."""
@@ -61,9 +61,10 @@ class MemoryStore:
         """Tips ranked by relevance, then by how much they were thanked."""
         scored: list[tuple[int, int, KnowledgeEntry]] = []
         for tip in self.packets(kind="tip"):
-            score = relevance(query, tip.payload["topic"], tip.payload["text"])
-            if score < MIN_RELEVANCE:
+            keywords = tip.payload.get("keywords")
+            if not answers(query, tip.payload["topic"], tip.payload["text"], keywords, min_score=MIN_SEARCH_RELEVANCE):
                 continue
+            score = relevance(query, tip.payload["topic"], tip.payload["text"], keywords)
             thanks = [t for t in self.packets(kind="thanks") if t.payload.get("tip_id") == tip.id]
             origin = self._households.get(tip.origin_household)
             entry = KnowledgeEntry(

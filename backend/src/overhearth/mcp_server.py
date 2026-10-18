@@ -35,6 +35,8 @@ APPEND_ONLY = ToolAnnotations(read_only_hint=False, destructive_hint=False, idem
 class ThanksResult(BaseModel):
     speech: str
     recorded: bool
+    to: str | None = None
+    """Who the thanks will travel back to, when it was for know-how from town."""
 
 
 class ShareResult(BaseModel):
@@ -148,8 +150,12 @@ def build_server(store: Store) -> MCPServer:
                 consented_at=utcnow(),
             )
         )
-        speech = "You're welcome. I'll pass that along in town." if tip_id else "You're welcome."
-        return ThanksResult(speech=speech, recorded=True)
+        if not tip_id:
+            return ThanksResult(speech="You're welcome.", recorded=True)
+        tip = store.get_packet(tip_id)
+        origin = store.get_household(tip.origin_household) if tip else None
+        to = origin.label if origin else None
+        return ThanksResult(speech="You're welcome. I'll pass that along in town.", recorded=True, to=to)
 
     @mcp.tool(
         name="share_with_town",

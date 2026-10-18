@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 from collections import defaultdict
 from datetime import timedelta
-from typing import Any
+from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
 
@@ -21,6 +21,8 @@ TREND_CANDIDATES = 6
 class TipPayload(BaseModel):
     topic: str = Field(min_length=1, max_length=40)
     text: str = Field(min_length=1, max_length=500)
+    keywords: list[Annotated[str, Field(max_length=24)]] = Field(default_factory=list, max_length=16)
+    """Search words (synonyms, related needs) so everyday questions can find the tip."""
 
 
 class Tip(KindHandler):
@@ -93,9 +95,9 @@ class Question(KindHandler):
         known = ctx.store.packets(kind="tip", origin=knower_id)
         known += [p for pid in ctx.store.carried(knower_id) if (p := ctx.store.get_packet(pid)) and p.kind == "tip"]
         scored = [
-            (relevance(query, p.payload["topic"], p.payload["text"]), p)
+            (relevance(query, p.payload["topic"], p.payload["text"], p.payload.get("keywords")), p)
             for p in known
-            if answers(query, p.payload["topic"], p.payload["text"])
+            if answers(query, p.payload["topic"], p.payload["text"], p.payload.get("keywords"))
         ]
         return max(scored, key=lambda s: s[0])[1] if scored else None
 

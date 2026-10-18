@@ -20,7 +20,7 @@ Amazon Developer の「Build, Ship, Shape」ハッカソン（Alexa+ トラッ�
 | パス | 内容 |
 |---|---|
 | `backend/` | Python の MCP サーバー、データモデル、交換する情報の種類、データの保存 |
-| `web/` | Alexa+ を再現する Web クライアントと町の表示（作成予定） |
+| `web/` | Alexa+ を再現する Web クライアント（TypeScript、Vite）。Echo Show 風の画面で、本物の MCP クライアントとして動く |
 
 ## バックエンドをローカルで動かす
 
@@ -56,6 +56,34 @@ curl -X POST http://127.0.0.1:8000/dev/tick
 | `OVERHEARTH_SEED` | `town` | `town` はデモの町、`dev` はテスト用の小さな町 |
 | `OVERHEARTH_DEV_ENDPOINTS` | 未設定 | `1` にすると `POST /dev/tick` が使える |
 | `AWS_REGION` | `us-east-1` | Bedrock のリージョン |
+
+## Alexa+ を再現するクライアントを動かす
+
+Node 22 以上が必要です。
+
+```sh
+# ターミナル1: Alexa の層と分身の会話に Bedrock を使ってバックエンドを起動
+cd backend
+OVERHEARTH_ASSISTANT=bedrock OVERHEARTH_DIALOGUE=bedrock OVERHEARTH_DEV_ENDPOINTS=1 uv run python -m overhearth
+
+# ターミナル2: Web クライアント（http://localhost:5173）
+cd web
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+1回のやり取りの流れ:
+
+1. 画面が、利用者の発話を `POST /assistant/turn` に送ります。バックエンドが Bedrock（Claude Haiku 5.5）で Alexa+ の役を演じ、Overhearth のツールを選ぶか、返事の文を作ります。ツールの一覧はブラウザからではなく、MCP サーバー自身から取ります。
+2. 画面が、選ばれたツールを家のトークンを使って MCP（Streamable HTTP、プロトコル 2025-11-25）で実行し、結果を送り返します。
+3. 返事はブラウザの音声合成で読み上げます。音声入力は、使えるブラウザでは Web Speech API を使います。文字入力はいつでも使えます。
+
+| 環境変数 | 既定値 | 意味 |
+|---|---|---|
+| `OVERHEARTH_ASSISTANT` | `OVERHEARTH_DIALOGUE` に従う | `bedrock` にすると Alexa の層を Bedrock で動かす。それ以外は簡単なキーワードの規則 |
+| `VITE_BACKEND_URL`（web） | `http://127.0.0.1:8000` | バックエンドの URL |
+| `VITE_DEV_TICK`（web） | 未設定 | `1` にすると「Advance town time」ボタンを表示する |
 
 ## データとプライバシー
 
