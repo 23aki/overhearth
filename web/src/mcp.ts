@@ -1,4 +1,4 @@
-import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
+import { type CallToolResult, Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { MCP_URL } from "./config";
 
 export interface ToolInfo {
@@ -11,12 +11,15 @@ export interface ToolOutcome {
   structured: Record<string, unknown> | null;
   text: string;
   isError: boolean;
+  /** The full result, for handing to an MCP App view. */
+  raw?: CallToolResult;
 }
 
 /** One household's connection to the Overhearth MCP server (protocol 2025-11-25). */
 export class McpConnection {
   private constructor(
-    private readonly client: Client,
+    /** Exposed so an MCP App view can be bridged to the same server session. */
+    readonly client: Client,
     readonly tools: Map<string, ToolInfo>,
   ) {}
 
@@ -50,6 +53,7 @@ export class McpConnection {
       structured: (result.structuredContent as Record<string, unknown> | undefined) ?? null,
       text,
       isError: Boolean(result.isError),
+      raw: result as CallToolResult,
     };
   }
 

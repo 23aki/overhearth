@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Overhearth town</title>
+    <link rel="stylesheet" href="./src/town.css" />
+  </head>
+  <body>
+    <div class="app">
+      <div class="map-wrap">
+        <svg id="map" viewBox="0 0 800 520" role="img" aria-label="Map of the town and its homes"></svg>
+        <p id="caption" class="caption" aria-live="polite"></p>
+      </div>
+      <div class="bar">
+        <button id="replay" type="button">Replay</button>
+        <button id="news" type="button" class="ghost">Ask Alexa for the news</button>
+        <button id="expand" type="button" class="ghost" hidden>Full screen</button>
+        <span id="status" class="status"></span>
+      </div>
+      <div class="lower">
+        <section id="home-card" class="home-card" hidden></section>
+        <ol id="log" class="log"></ol>
+      </div>
+    </div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

@@ -91,6 +91,26 @@ How a turn works:
 3. The reply is spoken with the browser's speech synthesis. Voice input uses the Web Speech API
    where available; typing always works.
 
+### The town view (MCP App)
+
+Say "show me the town". `open_town` points at the `ui://overhearth/town.html` resource, and the page
+acts as the MCP Apps host the way Alexa+ would on an Echo Show: it reads the resource, renders it in
+a sandboxed iframe, and bridges it to the MCP server with `@modelcontextprotocol/ext-apps`.
+
+- The view loads the town through the host (`tools/call get_town_state`, a tool only the view can
+  see) and replays the latest town time: who met whom, and thanks travelling back to the home
+  whose know-how helped.
+- "Ask Alexa for the news" sends a `ui/message`, so the view can start a turn as the person.
+- It can ask the host for full screen.
+
+The view's source is in `web/town/`. It is built into one HTML file that the backend serves, and
+the built file is committed:
+
+```sh
+cd web
+npm run build:town   # writes backend/src/overhearth/ui/town.html
+```
+
 | Variable | Default | Meaning |
 |---|---|---|
 | `OVERHEARTH_ASSISTANT` | follows `OVERHEARTH_DIALOGUE` | `bedrock` for the Alexa layer on Bedrock; otherwise simple keyword rules |

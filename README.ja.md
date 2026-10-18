@@ -79,6 +79,21 @@ npm run dev
 2. 画面が、選ばれたツールを家のトークンを使って MCP（Streamable HTTP、プロトコル 2025-11-25）で実行し、結果を送り返します。
 3. 返事はブラウザの音声合成で読み上げます。音声入力は、使えるブラウザでは Web Speech API を使います。文字入力はいつでも使えます。
 
+### 町の画面（MCP App）
+
+「show me the town」と話しかけます。`open_town` は `ui://overhearth/town.html` のリソースを指しています。画面は、Echo Show 上の Alexa+ と同じように MCP Apps のホストとして動きます。リソースを読み込み、sandbox を付けた iframe に表示し、`@modelcontextprotocol/ext-apps` で MCP サーバーとつなぎます。
+
+- 町の画面は、ホストを通して町の様子を取得します（`tools/call get_town_state`。この画面からだけ見えるツールです）。そして直近の町の時間を再生します。誰と誰が会ったか、役に立った知恵の持ち主の家へ感謝が戻っていく様子を見せます。
+- 「Ask Alexa for the news」を押すと `ui/message` を送ります。画面から、利用者として会話を始められます。
+- ホストに全画面表示を頼めます。
+
+画面のソースは `web/town/` にあります。バックエンドが配信する1つの HTML ファイルにビルドし、ビルドしたファイルもコミットしています。
+
+```sh
+cd web
+npm run build:town   # backend/src/overhearth/ui/town.html に出力
+```
+
 | 環境変数 | 既定値 | 意味 |
 |---|---|---|
 | `OVERHEARTH_ASSISTANT` | `OVERHEARTH_DIALOGUE` に従う | `bedrock` にすると Alexa の層を Bedrock で動かす。それ以外は簡単なキーワードの規則 |
