@@ -108,3 +108,10 @@ def test_thanks_heard_about_before_the_tick_are_still_announced_with_a_real_coun
     assert returns
     assert "0 times" not in returns[0].text
     assert "thanked once" in returns[0].text
+
+
+def test_get_on_mcp_is_405_instead_of_a_stream_that_never_ends():
+    with TestClient(create_app(seeded_store())) as client:
+        response = client.get("/mcp", headers={**HEADERS, "Accept": "text/event-stream"})
+        assert response.status_code == 405
+        assert "POST" in response.headers["allow"]

@@ -10,6 +10,8 @@ Amazon Developer の「Build, Ship, Shape」ハッカソン（Alexa+ トラッ�
 
 > 状態: 開発中です。
 
+**試す:** <https://do7sfung0ly8x.cloudfront.net>。デモの家を選ぶだけで、サインインは要りません。MCP のエンドポイントは `https://lb45tdkpz4.execute-api.us-east-1.amazonaws.com/mcp` です（Bearer トークンは `demo-tokyo`、`demo-osaka`、`demo-seattle`、`demo-austin`）。
+
 ## Alexa+ との関係
 
 - `backend/` は自前でホストする MCP サーバーです（仕様 2025-11-25、Streamable HTTP）。町の表示は MCP App（`ui://overhearth/town.html`）として提供します。
