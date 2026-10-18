@@ -107,3 +107,10 @@ def test_dev_tick_is_off_by_default(server_url):
     with pytest.raises(urllib.error.HTTPError) as error:
         urllib.request.urlopen(request, timeout=5)
     assert error.value.code == 404
+
+
+def test_thanks_for_town_know_how_says_where_it_goes(server_url):
+    result = _structured(
+        _client(server_url).call_tool("record_thanks", {"what_helped": "egg dinner", "tip_id": "pkt_egg_spinach"})[0]
+    )
+    assert result["to"] == "a retired cook's home in Osaka"

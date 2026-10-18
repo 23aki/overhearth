@@ -75,7 +75,7 @@ def seeded_town(*, seed: int = 42, now: datetime | None = None) -> MemoryStore:
             packet = _packet(
                 "tip",
                 origin,
-                {"topic": tip["topic"], "text": tip["text"]},
+                {"topic": tip["topic"], "text": tip["text"], "keywords": tip.get("keywords", [])},
                 shared_at,
                 id=tip["id"],
                 topics=[tip["topic"]],

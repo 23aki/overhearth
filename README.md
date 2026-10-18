@@ -24,7 +24,7 @@ Built for the Amazon Developer "Build, Ship, Shape" hackathon (Alexa+ track).
 | Path | What |
 |---|---|
 | `backend/` | Python MCP server, data model, exchange kinds, storage |
-| `web/` | Simulated Alexa+ client and the town view (coming) |
+| `web/` | Simulated Alexa+ client (TypeScript, Vite): an Echo Show-like page that is a real MCP client |
 
 ## Run the backend locally
 
@@ -64,6 +64,38 @@ curl -X POST http://127.0.0.1:8000/dev/tick
 | `OVERHEARTH_SEED` | `town` | `town` for the demo town, `dev` for a tiny town used in tests |
 | `OVERHEARTH_DEV_ENDPOINTS` | unset | `1` enables `POST /dev/tick` |
 | `AWS_REGION` | `us-east-1` | Region for Bedrock |
+
+## Run the simulated Alexa+ client
+
+Requires Node 22+.
+
+```sh
+# terminal 1: backend with Bedrock for the Alexa layer and the avatars' dialogue
+cd backend
+OVERHEARTH_ASSISTANT=bedrock OVERHEARTH_DIALOGUE=bedrock OVERHEARTH_DEV_ENDPOINTS=1 uv run python -m overhearth
+
+# terminal 2: web client at http://localhost:5173
+cd web
+cp .env.example .env.local
+npm install
+npm run dev
+```
+
+How a turn works:
+
+1. The page sends what the person said to `POST /assistant/turn`. The backend plays the Alexa+
+   part with Bedrock (Claude Haiku 5.5): it picks Overhearth tools or words the reply. The tool list
+   comes from the MCP server itself, not from the browser.
+2. The page runs the chosen tools over MCP (Streamable HTTP, protocol 2025-11-25) with the
+   household's token, and sends the results back.
+3. The reply is spoken with the browser's speech synthesis. Voice input uses the Web Speech API
+   where available; typing always works.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `OVERHEARTH_ASSISTANT` | follows `OVERHEARTH_DIALOGUE` | `bedrock` for the Alexa layer on Bedrock; otherwise simple keyword rules |
+| `VITE_BACKEND_URL` (web) | `http://127.0.0.1:8000` | Backend base URL |
+| `VITE_DEV_TICK` (web) | unset | `1` shows the "Advance town time" button |
 
 ## Data and privacy
 

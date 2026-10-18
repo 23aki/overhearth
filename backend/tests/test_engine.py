@@ -110,9 +110,9 @@ def test_first_tick_returns_thanks_said_just_before_it(store):
 
 
 def test_plural_and_singular_topics_match():
-    from overhearth.text import MIN_RELEVANCE, relevance
+    from overhearth.text import answers
 
-    assert relevance("late dinners in ten minutes", "quick dinner", "Ten-minute egg") >= MIN_RELEVANCE
+    assert answers("late dinners in ten minutes", "quick dinner", "Ten-minute egg")
 
 
 def test_questions_and_tips_are_offered_before_thanks(store):
@@ -140,3 +140,9 @@ def test_new_city_question_matches_new_city_tip():
         "new city",
         "Visit the local library first.",
     )
+
+
+def test_demo_homes_always_go_out(store):
+    run_tick(store, TemplateDialogue(), rng=random.Random(0), out_ratio=0.0)
+    met = {h.id for h in store.households() if (r := store.latest_report(h.id)) and r.met}
+    assert {"hh_tokyo", "hh_osaka"} <= met

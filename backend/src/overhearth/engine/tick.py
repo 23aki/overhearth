@@ -84,7 +84,8 @@ def run_tick(
     rng = rng or random.Random()
     tick, since = store.next_tick(at)
 
-    out = [h for h in store.households() if rng.random() < out_ratio]
+    # Demo homes always go out, so a demo always has something to report.
+    out = [h for h in store.households() if h.tier == "demo" or rng.random() < out_ratio]
     rng.shuffle(out)
     pairs = list(zip(out[0::2], out[1::2], strict=False))
     ctx = TickContext(tick=tick, at=at, since=since, store=store, out={h.id for h in out})

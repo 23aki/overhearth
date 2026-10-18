@@ -1,6 +1,8 @@
 import random
 from collections import Counter
 
+import pytest
+
 from overhearth.engine import TemplateDialogue, run_tick
 from overhearth.models import utcnow
 from overhearth.town_seed import QUIET_BEFORE_NOW, load_town_data, seeded_town
@@ -66,3 +68,25 @@ def test_first_tick_produces_trends_and_exchanges():
     assert result.encounters == len(store.households()) // 2
     assert result.exchanges > 0
     assert any("trend" in _report_kinds(store, h.id) for h in store.households())
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "What can I cook in ten minutes?",
+        "fast meal to cook in 10 minutes",
+        "quick dinner after getting home late",
+    ],
+)
+def test_everyday_dinner_questions_find_the_egg_dinner(question):
+    found = [entry.packet_id for entry in seeded_town().search_knowledge(question)]
+    assert "tip_egg_spinach" in found
+
+
+def test_every_seeded_tip_has_keywords():
+    assert all(t.get("keywords") for h in load_town_data()["households"] for t in h["tips"])
+
+
+def test_feeling_lonely_after_a_move_finds_the_library_tip():
+    found = [entry.packet_id for entry in seeded_town().search_knowledge("I feel lonely after moving")]
+    assert "tip_library_first" in found

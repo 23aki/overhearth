@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Overhearth · Simulated Alexa+</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='12' fill='none' stroke='%2334c6f4' stroke-width='5'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <span class="brand-name">Overhearth</span>
+        <span class="badge" title="The Alexa+ conversation layer is simulated in this page. The MCP server and the town are real.">
+          Simulated Alexa+ add-on
+        </span>
+      </div>
+      <div class="controls">
+        <label class="home-picker">
+          <span>Home</span>
+          <select id="household"></select>
+        </label>
+        <button id="tick" class="ghost" type="button" hidden>Advance town time</button>
+      </div>
+    </header>
+
+    <main class="stage">
+      <div class="device" aria-label="Simulated Echo Show screen">
+        <div class="screen">
+          <section class="convo" aria-live="polite">
+            <div id="ring" class="ring" data-state="idle"><span></span></div>
+            <ol id="transcript" class="transcript"></ol>
+          </section>
+          <section id="panel" class="panel">
+            <p class="hint">Try “What happened in town while I was out?”</p>
+          </section>
+        </div>
+      </div>
+
+      <form id="composer" class="composer" autocomplete="off">
+        <button id="mic" class="mic" type="button" aria-label="Hold to talk">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
+        </button>
+        <input id="say" type="text" placeholder="Or type what you'd say to Alexa…" />
+        <button type="submit">Say</button>
+      </form>
+
+      <p class="note">
+        Every home in this town is simulated. Only what a person agrees to share leaves their home.
+      </p>
+    </main>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
