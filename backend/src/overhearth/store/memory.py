@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -17,18 +16,10 @@ from overhearth.models import (
     TownEvent,
     utcnow,
 )
-from overhearth.text import MIN_SEARCH_RELEVANCE, answers, relevance
+from overhearth.store.common import TOWN_VIEW_EVENTS, build_town_state, rank_knowledge, token_hash
 
 FIRST_TICK_LOOKBACK = timedelta(hours=1)
 """On the very first tick, aggregate what happened in the last hour."""
-
-
-TOWN_VIEW_EVENTS = 80
-"""How many recent town events the town view gets for its log and replay."""
-
-
-def token_hash(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
 
 
 class MemoryStore:
@@ -86,7 +77,7 @@ class MemoryStore:
         return self._households.get(household_id)
 
     def households(self) -> list[Household]:
-        return list(self._households.values())
+        return sorted(self._households.values(), key=lambda h: h.id)
 
     # packets ----------------------------------------------------------------
 
@@ -97,35 +88,20 @@ class MemoryStore:
         return self._packets.get(packet_id)
 
     def packets(self, *, kind: str | None = None, origin: str | None = None) -> list[Packet]:
-        return [
+        found = [
             p
             for p in self._packets.values()
             if (kind is None or p.kind == kind) and (origin is None or p.origin_household == origin)
         ]
+        return sorted(found, key=lambda p: (p.created_at, p.id))
 
     # knowledge --------------------------------------------------------------
 
     def search_knowledge(self, query: str, *, limit: int = 3) -> list[KnowledgeEntry]:
         """Tips ranked by relevance, then by how much they were thanked."""
-        scored: list[tuple[int, int, KnowledgeEntry]] = []
-        for tip in self.packets(kind="tip"):
-            keywords = tip.payload.get("keywords")
-            if not answers(query, tip.payload["topic"], tip.payload["text"], keywords, min_score=MIN_SEARCH_RELEVANCE):
-                continue
-            score = relevance(query, tip.payload["topic"], tip.payload["text"], keywords)
-            thanks = [t for t in self.packets(kind="thanks") if t.payload.get("tip_id") == tip.id]
-            origin = self._households.get(tip.origin_household)
-            entry = KnowledgeEntry(
-                packet_id=tip.id,
-                topic=tip.payload["topic"],
-                text=tip.payload["text"],
-                thanks_count=len(thanks),
-                households_thanked=len({t.origin_household for t in thanks}),
-                origin_label=origin.label if origin else "a neighbor",
-            )
-            scored.append((score, entry.thanks_count, entry))
-        scored.sort(key=lambda s: (s[0], s[1]), reverse=True)
-        return [entry for _, _, entry in scored[:limit]]
+        return rank_knowledge(
+            query, self.packets(kind="tip"), self.packets(kind="thanks"), self._households, limit=limit
+        )
 
     # reports and events -----------------------------------------------------
 
@@ -170,22 +146,10 @@ class MemoryStore:
         self._events.extend(events)
 
     def town_state(self) -> dict[str, Any]:
-        glow: dict[str, int] = {}
-        for thanks in self.packets(kind="thanks"):
-            tip = self._packets.get(thanks.payload.get("tip_id") or "")
-            if tip:
-                glow[tip.origin_household] = glow.get(tip.origin_household, 0) + 1
-        return {
-            "homes": [
-                {
-                    "id": h.id,
-                    "label": h.label,
-                    "avatar": h.avatar_name,
-                    "tier": h.tier,
-                    "region": h.region,
-                    "glow": glow.get(h.id, 0),
-                }
-                for h in self._households.values()
-            ],
-            "events": [e.model_dump(mode="json") for e in self.town_events(limit=TOWN_VIEW_EVENTS)],
-        }
+        tip_origins = {p.id: p.origin_household for p in self.packets(kind="tip")}
+        return build_town_state(
+            self.households(),
+            tip_origins,
+            self.packets(kind="thanks"),
+            self.town_events(limit=TOWN_VIEW_EVENTS),
+        )

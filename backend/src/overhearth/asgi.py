@@ -14,31 +14,20 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp
 
 from overhearth.assistant import RateLimiter, TurnRequest, assistant_from_env, tool_defs, trim
-from overhearth.dev_seed import seeded_store
 from overhearth.engine import dialogue_from_env, run_tick
 from overhearth.mcp_server import build_server
 from overhearth.oauth import BearerGate, install_oauth_routes
 from overhearth.store import Store
-from overhearth.town_seed import seeded_town
+from overhearth.store.env import store_from_env
 
 log = logging.getLogger(__name__)
 
-
-def _store_from_env() -> Store:
-    backend = os.environ.get("OVERHEARTH_STORE", "memory")
-    if backend != "memory":
-        raise ValueError(f"unsupported OVERHEARTH_STORE={backend!r}")
-    seed = os.environ.get("OVERHEARTH_SEED", "town")
-    if seed == "town":
-        return seeded_town()
-    if seed == "dev":
-        return seeded_store()
-    raise ValueError(f"unsupported OVERHEARTH_SEED={seed!r}")
+DEV_TICK_INTERVAL_SECONDS = float(os.environ.get("OVERHEARTH_DEV_TICK_INTERVAL", "30"))
 
 
 def create_app(store: Store | None = None) -> ASGIApp:
     if store is None:
-        store = _store_from_env()
+        store = store_from_env()
     server = build_server(store)
 
     @server.custom_route("/health", methods=["GET"])
@@ -72,11 +61,23 @@ def create_app(store: Store | None = None) -> ASGIApp:
 
     if os.environ.get("OVERHEARTH_DEV_ENDPOINTS") == "1":
         dialogue = dialogue_from_env()
+        tick_limiter = RateLimiter(limit=1, window_seconds=DEV_TICK_INTERVAL_SECONDS)
+        tick_lock = anyio.Lock()
 
         @server.custom_route("/dev/tick", methods=["POST"])
-        async def dev_tick(_: Request) -> JSONResponse:
-            """Advance town time once. Development and demo only, never enabled by default."""
-            result = await anyio.to_thread.run_sync(lambda: run_tick(store, dialogue))
+        async def dev_tick(request: Request) -> JSONResponse:
+            """Advance town time once, for demos. Off by default.
+
+            Needs a linked home's token, and runs at most once per interval for the whole town,
+            because each tick calls the model for every encounter.
+            """
+            scheme, _, token = request.headers.get("authorization", "").partition(" ")
+            if scheme.lower() != "bearer" or store.household_for_token(token) is None:
+                return JSONResponse({"error": "Link a home first."}, status_code=401)
+            if tick_lock.locked() or not tick_limiter.allow("town"):
+                return JSONResponse({"error": "The town is still busy. Try again in a moment."}, status_code=429)
+            async with tick_lock:
+                result = await anyio.to_thread.run_sync(lambda: run_tick(store, dialogue))
             return JSONResponse(asdict(result))
 
     app = server.streamable_http_app(

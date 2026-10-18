@@ -124,3 +124,20 @@ def test_thanks_for_town_know_how_says_where_it_goes(server_url):
         _client(server_url).call_tool("record_thanks", {"what_helped": "egg dinner", "tip_id": "pkt_egg_spinach"})[0]
     )
     assert result["to"] == "a retired cook's home in Osaka"
+
+
+def test_dev_tick_needs_a_linked_home_and_is_rate_limited(monkeypatch):
+    from starlette.testclient import TestClient
+
+    from overhearth.asgi import create_app
+    from overhearth.dev_seed import seeded_store
+
+    monkeypatch.setenv("OVERHEARTH_DEV_ENDPOINTS", "1")
+    monkeypatch.setenv("OVERHEARTH_DIALOGUE", "template")
+    monkeypatch.setenv("OVERHEARTH_ASSISTANT", "scripted")
+    with TestClient(create_app(seeded_store())) as client:
+        assert client.post("/dev/tick").status_code == 401
+        first = client.post("/dev/tick", headers={"Authorization": "Bearer demo-tokyo"})
+        assert first.status_code == 200
+        assert first.json()["tick"] == 1
+        assert client.post("/dev/tick", headers={"Authorization": "Bearer demo-tokyo"}).status_code == 429

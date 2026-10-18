@@ -21,6 +21,7 @@ Amazon Developer の「Build, Ship, Shape」ハッカソン（Alexa+ トラッ�
 |---|---|
 | `backend/` | Python の MCP サーバー、データモデル、交換する情報の種類、データの保存 |
 | `web/` | Alexa+ を再現する Web クライアント（TypeScript、Vite）。Echo Show 風の画面で、本物の MCP クライアントとして動く |
+| `infra/` | AWS へデプロイするための AWS CDK アプリ（TypeScript） |
 
 ## バックエンドをローカルで動かす
 
@@ -54,7 +55,8 @@ curl -X POST http://127.0.0.1:8000/dev/tick
 | `OVERHEARTH_DIALOGUE` | `template` | `bedrock` にすると、Bedrock 上の Strands Agents で会話を生成する |
 | `OVERHEARTH_BEDROCK_MODEL` | `global.anthropic.claude-haiku-5-5` | Bedrock のモデル ID か推論プロファイル ID |
 | `OVERHEARTH_SEED` | `town` | `town` はデモの町、`dev` はテスト用の小さな町 |
-| `OVERHEARTH_DEV_ENDPOINTS` | 未設定 | `1` にすると `POST /dev/tick` が使える |
+| `OVERHEARTH_DEV_ENDPOINTS` | 未設定 | `1` にすると `POST /dev/tick` が使える（連携済みの家のトークンが必要。30秒に1回まで） |
+| `OVERHEARTH_STORE` | `memory` | `dynamo` にすると DynamoDB（`OVERHEARTH_TABLE`）を使う |
 | `AWS_REGION` | `us-east-1` | Bedrock のリージョン |
 
 ## Alexa+ を再現するクライアントを動かす
@@ -117,6 +119,42 @@ Web クライアントでは、家の選択メニューの「Link your own home�
 | `OVERHEARTH_PUBLIC_URL` | リクエストから求める | メタデータに使う公開の URL（プロキシや API Gateway の後ろでは設定する） |
 | `OVERHEARTH_WEB_REDIRECTS` | `http://localhost:5173/,http://127.0.0.1:5173/` | Web クライアントに許すリダイレクト先 |
 | `OVERHEARTH_OAUTH_CLIENTS` | 未設定 | 機密クライアントの JSON の配列（`client_id`、`client_secret`、`redirect_uris`、`name`）。リポジトリには入れない |
+
+## AWS へデプロイする
+
+```text
+Echo Show（再現） ── CloudFront + S3: Web クライアント
+        │ MCP（Streamable HTTP）、OAuth、POST /assistant/turn
+        ▼
+API Gateway HTTP API ── Lambda（Lambda Web Adapter で ASGI アプリを動かす） ── Bedrock
+                                         │
+EventBridge（30分ごと） ── Lambda: 町の時間を進める ── Bedrock
+                                         │
+                                     DynamoDB（テーブル1つ）
+```
+
+- `OVERHEARTH_STORE=dynamo` にすると、サーバーと町の時間の処理が DynamoDB（`OVERHEARTH_TABLE`）を使います。同じテストを両方の保存先に対して実行します（DynamoDB は moto で模擬）。
+- Lambda に載せるファイル一式は Docker なしで作ります。`scripts/build_lambda.py` が Python 3.11 の Linux 向けパッケージを入れて、`backend/build/lambda.zip` を作ります。
+- Web クライアントは、バックエンドの URL を `/config.js` から読みます。このファイルはデプロイのときに書き込みます。
+
+デプロイに使う AWS の権限には、CloudFormation のスタック、IAM ロール、Lambda、API Gateway、DynamoDB、S3、CloudFront、EventBridge のルール、ロググループを作れることと、最初に1回 `cdk bootstrap` を実行できることが必要です。また、使うモデルへのアクセスを Bedrock で有効にしておきます。
+
+```sh
+cd backend && uv run python scripts/build_lambda.py
+cd ../web && npm ci && npm run build
+cd ../infra && npm ci
+npx cdk bootstrap --profile <deploy-profile>           # アカウントとリージョンごとに1回だけ
+npx cdk deploy --profile <deploy-profile> -c demoTick=true -c provisionedConcurrency=1
+# 新しいテーブルにデモの町を入れる（TableName は cdk deploy の出力に出る）
+cd ../backend && AWS_PROFILE=<deploy-profile> uv run python -m overhearth.store.dynamo --table <TableName>
+```
+
+| コンテキスト（`-c`） | 既定値 | 意味 |
+|---|---|---|
+| `demoTick` | `false` | 「Advance town time」ボタンを表示する。このとき `POST /dev/tick` は、連携済みの家のトークンが必要で、30秒に1回までしか動かない |
+| `provisionedConcurrency` | `0` | 待機させておく API のインスタンス数。`1` にすると最初の呼び出しも速いが、時間あたりの費用が少しかかる |
+| `lambdaAdapterLayerVersion` | `25` | 公開されている Lambda Web Adapter のレイヤーのバージョン |
+| `bedrockModel` | `global.anthropic.claude-haiku-5-5` | Alexa の層と分身の会話に使うモデル、または推論プロファイル |
 
 ## データとプライバシー
 
