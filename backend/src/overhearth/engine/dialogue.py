@@ -31,6 +31,8 @@ class AvatarBrief:
     home: str
     personality: tuple[str, ...]
     offers: tuple[Offer, ...]
+    featured: bool = False
+    """A demo or linked home: people will hear and read this avatar's encounters."""
 
 
 class Line(BaseModel):
@@ -141,7 +143,27 @@ class BedrockDialogue:
             return self._fallback.generate(a, b)
 
 
+class FeaturedDialogue:
+    """Use the model only where people will notice: encounters with a demo or linked home.
+
+    Encounters between background homes only appear in the town log, so the template is
+    enough there, and the hosted town makes a fraction of the model calls.
+    """
+
+    def __init__(self, model: DialogueGenerator, template: DialogueGenerator | None = None) -> None:
+        self._model = model
+        self._template = template or TemplateDialogue()
+
+    def generate(self, a: AvatarBrief, b: AvatarBrief) -> EncounterScript:
+        if a.featured or b.featured:
+            return self._model.generate(a, b)
+        return self._template.generate(a, b)
+
+
 def dialogue_from_env() -> DialogueGenerator:
+    """OVERHEARTH_DIALOGUE=bedrock uses the model; OVERHEARTH_DIALOGUE_SCOPE=all (default
+    featured) also uses it for encounters between background homes."""
     if os.environ.get("OVERHEARTH_DIALOGUE", "template") == "bedrock":
-        return BedrockDialogue()
+        model = BedrockDialogue()
+        return model if os.environ.get("OVERHEARTH_DIALOGUE_SCOPE") == "all" else FeaturedDialogue(model)
     return TemplateDialogue()
