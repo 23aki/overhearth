@@ -49,13 +49,19 @@ Each tick, avatars that are out pair up, talk, and pass on what their homes shar
 generated with [Strands Agents](https://strandsagents.com) on Amazon Bedrock (Claude Haiku 5.5 by
 default), or with a fixed template offline.
 
+The people in the background households are simulated, and they keep living between ticks: now
+and then one thanks its Alexa for a tip its avatar brought home, or for one of its usual things.
+The rate is per hour of town time (about forty thanks a day across the town), so returns and
+trends keep flowing for weeks. Demo and linked homes only thank when a person does. A pending
+report says each returned tip once, with the total since the home last listened.
+
 ```sh
 uv run python -m overhearth.engine --ticks 2              # offline, template dialogue
 uv run python -m overhearth.engine --ticks 1 --bedrock    # Bedrock (uses your AWS credentials)
 
 # Advance town time from the running server (development only):
 OVERHEARTH_DEV_ENDPOINTS=1 OVERHEARTH_DIALOGUE=bedrock uv run python -m overhearth
-curl -X POST http://127.0.0.1:8000/dev/tick
+curl -X POST -H "Authorization: Bearer demo-tokyo" http://127.0.0.1:8000/dev/tick
 ```
 
 | Variable | Default | Meaning |

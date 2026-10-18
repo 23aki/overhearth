@@ -84,6 +84,8 @@ class ReportItem(BaseModel):
     kind: str
     text: str
     refs: list[str] = Field(default_factory=list)
+    key: str | None = None
+    """Items with the same key replace each other, so a pending report says it once, up to date."""
 
 
 class Report(BaseModel):

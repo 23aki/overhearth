@@ -16,7 +16,13 @@ from overhearth.models import (
     TownEvent,
     utcnow,
 )
-from overhearth.store.common import TOWN_VIEW_EVENTS, build_town_state, rank_knowledge, token_hash
+from overhearth.store.common import (
+    TOWN_VIEW_EVENTS,
+    build_town_state,
+    merge_report_items,
+    rank_knowledge,
+    token_hash,
+)
 
 FIRST_TICK_LOOKBACK = timedelta(hours=1)
 """On the very first tick, aggregate what happened in the last hour."""
@@ -111,13 +117,21 @@ class MemoryStore:
     def put_report(self, report: Report) -> None:
         self._reports[report.household_id] = report
 
-    def append_report(self, household_id: str, items: list[ReportItem], *, met: list[str], at: datetime) -> None:
+    def append_report(
+        self,
+        household_id: str,
+        items: list[ReportItem],
+        *,
+        met: list[str],
+        at: datetime,
+        since: datetime | None = None,
+    ) -> None:
         report = self._reports.get(household_id)
         if report is None:
-            report = Report(household_id=household_id, generated_at=at, since=at)
+            report = Report(household_id=household_id, generated_at=at, since=since or at)
         merged_met = report.met + [name for name in met if name not in report.met]
         self._reports[household_id] = report.model_copy(
-            update={"generated_at": at, "met": merged_met, "items": report.items + items}
+            update={"generated_at": at, "met": merged_met, "items": merge_report_items(report.items, items)}
         )
 
     def mark_report_heard(self, household_id: str, at: datetime) -> None:

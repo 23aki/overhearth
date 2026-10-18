@@ -6,7 +6,7 @@ import hashlib
 from collections.abc import Iterable
 from typing import Any
 
-from overhearth.models import Household, KnowledgeEntry, Packet, TownEvent
+from overhearth.models import Household, KnowledgeEntry, Packet, ReportItem, TownEvent
 from overhearth.text import MIN_SEARCH_RELEVANCE, answers, relevance
 
 TOWN_VIEW_EVENTS = 80
@@ -50,6 +50,12 @@ def rank_knowledge(
         scored.append((score, entry.thanks_count, entry))
     scored.sort(key=lambda s: (s[0], s[1]), reverse=True)
     return [entry for _, _, entry in scored[:limit]]
+
+
+def merge_report_items(pending: list[ReportItem], new: list[ReportItem]) -> list[ReportItem]:
+    """Append new items; an item with a key replaces any pending item with the same key."""
+    replaced = {item.key for item in new if item.key}
+    return [item for item in pending if item.key not in replaced or item.key is None] + new
 
 
 def build_town_state(

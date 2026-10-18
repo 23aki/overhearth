@@ -41,7 +41,13 @@ from overhearth.models import (
     TownEvent,
     utcnow,
 )
-from overhearth.store.common import TOWN_VIEW_EVENTS, build_town_state, rank_knowledge, token_hash
+from overhearth.store.common import (
+    TOWN_VIEW_EVENTS,
+    build_town_state,
+    merge_report_items,
+    rank_knowledge,
+    token_hash,
+)
 from overhearth.store.memory import FIRST_TICK_LOOKBACK, MemoryStore
 
 EVENT_TTL_SECONDS = 14 * 24 * 3600
@@ -170,10 +176,20 @@ class DynamoStore:
     def put_report(self, report: Report) -> None:
         self._put("REPORT", report.household_id, report.model_dump_json())
 
-    def append_report(self, household_id: str, items: list[ReportItem], *, met: list[str], at: datetime) -> None:
-        report = self.latest_report(household_id) or Report(household_id=household_id, generated_at=at, since=at)
+    def append_report(
+        self,
+        household_id: str,
+        items: list[ReportItem],
+        *,
+        met: list[str],
+        at: datetime,
+        since: datetime | None = None,
+    ) -> None:
+        report = self.latest_report(household_id) or Report(
+            household_id=household_id, generated_at=at, since=since or at
+        )
         merged_met = report.met + [name for name in met if name not in report.met]
-        update = {"generated_at": at, "met": merged_met, "items": report.items + items}
+        update = {"generated_at": at, "met": merged_met, "items": merge_report_items(report.items, items)}
         self.put_report(report.model_copy(update=update))
 
     def mark_report_heard(self, household_id: str, at: datetime) -> None:

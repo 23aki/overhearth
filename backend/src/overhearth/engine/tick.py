@@ -15,6 +15,7 @@ from datetime import datetime
 
 from overhearth import kinds
 from overhearth.engine.dialogue import AvatarBrief, DialogueGenerator, EncounterScript, Offer
+from overhearth.engine.residents import simulate_residents
 from overhearth.kinds import Carry, Effect, Event, ReportLine, TickContext
 from overhearth.models import Household, ReportItem, TownEvent, Visibility, utcnow
 from overhearth.store import Store
@@ -29,6 +30,7 @@ class TickResult:
     encounters: int
     exchanges: int
     report_lines: int
+    resident_thanks: int = 0
 
 
 def _offers(household: Household, store: Store) -> tuple[Offer, ...]:
@@ -123,11 +125,16 @@ def run_tick(
             exchanges += sum(isinstance(e, Carry) for e in effects)
             _apply(effects, store, lines)
 
+    # The simulated people in background homes thanked their Alexas in the meantime.
+    resident_thanks = simulate_residents(store, since=since, at=at, rng=rng)
+
     for kind in kinds.all_kinds():
         _apply(kinds.get(kind).aggregate(ctx), store, lines)
 
     for household_id in set(lines) | set(met):
-        store.append_report(household_id, lines.get(household_id, []), met=met.get(household_id, []), at=at)
+        store.append_report(
+            household_id, lines.get(household_id, []), met=met.get(household_id, []), at=at, since=since
+        )
 
     return TickResult(
         tick=tick,
@@ -135,4 +142,5 @@ def run_tick(
         encounters=len(pairs),
         exchanges=exchanges,
         report_lines=sum(len(v) for v in lines.values()),
+        resident_thanks=resident_thanks,
     )
