@@ -1,6 +1,7 @@
 interface RuntimeConfig {
   backendUrl?: string;
   devTick?: boolean;
+  accessKey?: string;
 }
 
 /** Set by /config.js, which the deployment writes; falls back to Vite env variables. */
@@ -11,6 +12,12 @@ export const BACKEND_URL =
 export const MCP_URL = `${BACKEND_URL}/mcp`;
 export const ASSISTANT_URL = `${BACKEND_URL}/assistant/turn`;
 export const DEV_TICK_URL = `${BACKEND_URL}/dev/tick`;
+/** Headers every backend call needs; the access key is only set while the demo is gated. */
+export function apiHeaders(): Record<string, string> {
+  const key = runtime.accessKey ?? (import.meta.env.VITE_ACCESS_KEY as string | undefined);
+  return key ? { "X-Overhearth-Access": key } : {};
+}
+
 export const SHOW_DEV_TICK = runtime.devTick ?? import.meta.env.VITE_DEV_TICK === "1";
 
 export interface DemoHousehold {

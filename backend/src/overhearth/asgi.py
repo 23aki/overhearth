@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import logging
 import os
 from dataclasses import asdict
@@ -49,6 +50,31 @@ def transport_security() -> TransportSecuritySettings | None:
         allowed_hosts=[netloc, f"{netloc}:*", *LOCAL_HOSTS],
         allowed_origins=[o for o in origins if o != "*"] + LOCAL_ORIGINS,
     )
+
+
+ACCESS_HEADER = "x-overhearth-access"
+GATED_PREFIXES = ("/mcp", "/assistant/", "/token", "/dev/")
+
+
+class AccessGate:
+    """While in development: the API needs a shared access key in a header (OVERHEARTH_ACCESS_KEY).
+
+    The web client gets the key from config.js, which sits behind the site's Basic
+    authentication. /health, the OAuth metadata and the /authorize page stay open; a home is
+    only created at /token, which is gated. Without the variable, nothing is gated.
+    """
+
+    def __init__(self, app: ASGIApp, key: str) -> None:
+        self.app = app
+        self.key = key.encode()
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http" and scope["method"] != "OPTIONS" and scope["path"].startswith(GATED_PREFIXES):
+            presented = dict(scope.get("headers") or []).get(ACCESS_HEADER.encode(), b"")
+            if not hmac.compare_digest(presented, self.key):
+                await JSONResponse({"error": "This preview is not open yet."}, status_code=403)(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
 
 
 class NoStandaloneStream:
@@ -139,11 +165,15 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
         transport_security=transport_security(),
     )
     origins = [o.strip() for o in os.environ.get("OVERHEARTH_ALLOWED_ORIGINS", "*").split(",") if o.strip()]
+    gated: ASGIApp = BearerGate(NoStandaloneStream(app), store)
+    access_key = os.environ.get("OVERHEARTH_ACCESS_KEY")
+    if access_key:
+        gated = AccessGate(gated, access_key)
     return CORSMiddleware(
-        BearerGate(NoStandaloneStream(app), store),
+        gated,
         allow_origins=origins,
         allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
-        allow_headers=["authorization", "content-type", "mcp-protocol-version", "mcp-session-id"],
+        allow_headers=["authorization", "content-type", "mcp-protocol-version", "mcp-session-id", ACCESS_HEADER],
         expose_headers=["mcp-session-id"],
     )
 

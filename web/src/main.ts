@@ -1,7 +1,7 @@
 import { mountApp } from "./apphost";
 import { type Message, type ToolEvent, runTurn } from "./assistant";
 import { renderToolEvent, townPlaceholder } from "./cards";
-import { DEMO_HOUSEHOLDS, DEV_TICK_URL, SHOW_DEV_TICK } from "./config";
+import { DEMO_HOUSEHOLDS, DEV_TICK_URL, SHOW_DEV_TICK, apiHeaders } from "./config";
 import { type LinkedHome, finishLinking, freshLinkedHome, linkedHome, startLinking } from "./link";
 import { McpConnection } from "./mcp";
 import { canListen, listenOnce, speak, stopSpeaking } from "./voice";
@@ -196,7 +196,7 @@ if (SHOW_DEV_TICK) {
     try {
       const response = await fetch(DEV_TICK_URL, {
         method: "POST",
-        headers: { Authorization: `Bearer ${current.token}` },
+        headers: { ...apiHeaders(), Authorization: `Bearer ${current.token}` },
       });
       const result = (await response.json()) as { encounters?: number; error?: string };
       tick.textContent = response.ok ? `Town time advanced (${result.encounters ?? 0} encounters)` : (result.error ?? "Could not advance time");

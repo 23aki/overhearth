@@ -191,6 +191,10 @@ cd ../backend && AWS_PROFILE=<deploy-profile> uv run python -m overhearth.store.
 | `lambdaAdapterLayerVersion` | `25` | 公開されている Lambda Web Adapter のレイヤーのバージョン |
 | `bedrockModel` | `global.anthropic.claude-haiku-5-5` | Alexa の層と分身の会話に使うモデル、または推論プロファイル |
 | `mailFrom` | 空（送信しない） | SES で検証済みの送信元。設定すると、連携した家にメールを送る |
+| `previewPassword` | 空（公開） | 開発中だけ、Web クライアントに Basic 認証をかける（ユーザー名は `overhearth`） |
+| `accessKey` | 空（公開） | 開発中だけ、API（`/mcp`、`/assistant/turn`、`/token`、`/dev/tick`）に、このキーを `X-Overhearth-Access` ヘッダーで求める。Web クライアントは、Basic 認証の内側にある `config.js` からキーを受け取る |
+
+`previewPassword` と `accessKey` はコマンドラインでだけ渡し、リポジトリには入れません。指定せずにデプロイすれば、デモは再び公開されます。
 
 ## データとプライバシー
 

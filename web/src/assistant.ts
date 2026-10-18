@@ -1,4 +1,4 @@
-import { ASSISTANT_URL } from "./config";
+import { ASSISTANT_URL, apiHeaders } from "./config";
 import type { McpConnection, ToolOutcome } from "./mcp";
 
 export interface ToolCall {
@@ -27,7 +27,7 @@ const MAX_STEPS = 4;
 async function postTurn(token: string, messages: Message[]): Promise<{ speech?: string; tool_calls: ToolCall[] }> {
   const response = await fetch(ASSISTANT_URL, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    headers: { ...apiHeaders(), "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ messages }),
   });
   if (!response.ok) {
