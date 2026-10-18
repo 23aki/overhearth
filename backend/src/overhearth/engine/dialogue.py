@@ -13,6 +13,8 @@ from pydantic import BaseModel, Field
 log = logging.getLogger(__name__)
 
 DEFAULT_MODEL_ID = "global.anthropic.claude-haiku-5-5"
+DEFAULT_ANTHROPIC_MODEL_ID = "claude-haiku-5-5"
+"""For development with the Claude API (OVERHEARTH_DIALOGUE=anthropic)."""
 
 
 @dataclass(frozen=True)
@@ -102,21 +104,11 @@ Rules:
 """
 
 
-class BedrockDialogue:
-    """Strands Agents on Amazon Bedrock."""
+class ModelDialogue:
+    """Strands Agents with any model provider; falls back to the template if the model fails."""
 
-    def __init__(self, *, model_id: str | None = None, region: str | None = None) -> None:
-        import boto3
-        from strands.models import BedrockModel
-
-        session = boto3.Session(region_name=region or os.environ.get("AWS_REGION", "us-east-1"))
-        self._model = BedrockModel(
-            model_id=model_id or os.environ.get("OVERHEARTH_BEDROCK_MODEL", DEFAULT_MODEL_ID),
-            boto_session=session,
-            max_tokens=1000,
-            streaming=False,
-            additional_request_fields={"thinking": {"type": "disabled"}},
-        )
+    def __init__(self, model) -> None:
+        self._model = model
         self._fallback = TemplateDialogue()
 
     def _prompt(self, a: AvatarBrief, b: AvatarBrief) -> str:
@@ -143,6 +135,46 @@ class BedrockDialogue:
             return self._fallback.generate(a, b)
 
 
+class BedrockDialogue(ModelDialogue):
+    """Strands Agents on Amazon Bedrock (the deployment)."""
+
+    def __init__(self, *, model_id: str | None = None, region: str | None = None) -> None:
+        import boto3
+        from strands.models import BedrockModel
+
+        session = boto3.Session(region_name=region or os.environ.get("AWS_REGION", "us-east-1"))
+        super().__init__(
+            BedrockModel(
+                model_id=model_id or os.environ.get("OVERHEARTH_BEDROCK_MODEL", DEFAULT_MODEL_ID),
+                boto_session=session,
+                max_tokens=1000,
+                streaming=False,
+                additional_request_fields={"thinking": {"type": "disabled"}},
+            )
+        )
+
+
+class ClaudeDialogue(ModelDialogue):
+    """Strands Agents on the Claude API, for development. Reads ANTHROPIC_API_KEY."""
+
+    def __init__(self, *, model_id: str | None = None) -> None:
+        from strands.models.anthropic import AnthropicModel
+
+        super().__init__(
+            AnthropicModel(
+                model_id=model_id or os.environ.get("OVERHEARTH_ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL_ID),
+                max_tokens=1000,
+                params={"thinking": {"type": "disabled"}},
+            )
+        )
+
+
+def model_dialogue(provider: str) -> DialogueGenerator:
+    if provider == "anthropic":
+        return ClaudeDialogue()
+    return BedrockDialogue()
+
+
 class FeaturedDialogue:
     """Use the model only where people will notice: encounters with a demo or linked home.
 
@@ -161,9 +193,10 @@ class FeaturedDialogue:
 
 
 def dialogue_from_env() -> DialogueGenerator:
-    """OVERHEARTH_DIALOGUE=bedrock uses the model; OVERHEARTH_DIALOGUE_SCOPE=all (default
-    featured) also uses it for encounters between background homes."""
-    if os.environ.get("OVERHEARTH_DIALOGUE", "template") == "bedrock":
-        model = BedrockDialogue()
+    """OVERHEARTH_DIALOGUE=bedrock (or anthropic, the Claude API for development) uses a model;
+    OVERHEARTH_DIALOGUE_SCOPE=all (default featured) also uses it between background homes."""
+    provider = os.environ.get("OVERHEARTH_DIALOGUE", "template")
+    if provider in ("bedrock", "anthropic"):
+        model = model_dialogue(provider)
         return model if os.environ.get("OVERHEARTH_DIALOGUE_SCOPE") == "all" else FeaturedDialogue(model)
     return TemplateDialogue()

@@ -24,6 +24,9 @@ from pydantic import BaseModel, Field
 log = logging.getLogger(__name__)
 
 DEFAULT_MODEL_ID = "global.anthropic.claude-haiku-5-5"
+DEFAULT_ANTHROPIC_MODEL_ID = "claude-haiku-5-5"
+"""For development with the Claude API (OVERHEARTH_ASSISTANT=anthropic)."""
+MAX_REPLY_TOKENS = 400
 MAX_MESSAGES = 24
 MAX_TEXT = 1000
 
@@ -163,6 +166,68 @@ def _to_converse(messages: list[Message]) -> list[dict[str, Any]]:
     return converse
 
 
+# --- Claude API (development) ---------------------------------------------------
+
+
+def _to_anthropic(messages: list[Message]) -> list[dict[str, Any]]:
+    """The same history in the Messages API shape: tool results go back in user turns."""
+    out: list[dict[str, Any]] = []
+    for message in messages:
+        if message.role == "user":
+            block: dict[str, Any] = {"type": "text", "text": message.text or ""}
+            role = "user"
+        elif message.role == "assistant":
+            content: list[dict[str, Any]] = [{"type": "text", "text": message.text}] if message.text else []
+            content += [
+                {"type": "tool_use", "id": c.id, "name": c.name, "input": c.arguments} for c in message.tool_calls
+            ]
+            out.append({"role": "assistant", "content": content or [{"type": "text", "text": "..."}]})
+            continue
+        else:
+            result = message.content if isinstance(message.content, str) else json.dumps(message.content)
+            block = {"type": "tool_result", "tool_use_id": message.tool_call_id, "content": result}
+            if message.is_error:
+                block["is_error"] = True
+            role = "user"
+        if out and out[-1]["role"] == role == "user":
+            out[-1]["content"].append(block)
+        else:
+            out.append({"role": role, "content": [block]})
+    return out
+
+
+class ClaudeAssistant:
+    """The Alexa layer on the Claude API, for development. Reads ANTHROPIC_API_KEY."""
+
+    def __init__(self, *, model_id: str | None = None, client: Any = None) -> None:
+        if client is None:
+            import anthropic
+
+            client = anthropic.Anthropic()
+        self._client = client
+        self._model_id = model_id or os.environ.get("OVERHEARTH_ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL_ID)
+
+    def turn(self, messages: list[Message], tools: list[ToolDef]) -> TurnResult:
+        response = self._client.messages.create(
+            model=self._model_id,
+            max_tokens=MAX_REPLY_TOKENS,
+            system=SYSTEM_PROMPT,
+            messages=_to_anthropic(messages),
+            tools=[{"name": t.name, "description": t.description, "input_schema": t.input_schema} for t in tools],
+            thinking={"type": "disabled"},
+        )
+        calls = [
+            ToolCall(id=block.id, name=block.name, arguments=dict(block.input or {}))
+            for block in response.content
+            if block.type == "tool_use"
+        ]
+        text = " ".join(block.text for block in response.content if block.type == "text").strip()
+        return TurnResult(speech=None if calls else text, tool_calls=calls)
+
+
+# --- Bedrock (the deployment) ---------------------------------------------------
+
+
 class BedrockAssistant:
     def __init__(self, *, model_id: str | None = None, region: str | None = None) -> None:
         import boto3
@@ -187,7 +252,7 @@ class BedrockAssistant:
                     for t in tools
                 ]
             },
-            inferenceConfig={"maxTokens": 400},
+            inferenceConfig={"maxTokens": MAX_REPLY_TOKENS},
             additionalModelRequestFields={"thinking": {"type": "disabled"}},
         )
         content = response["output"]["message"]["content"]
@@ -266,8 +331,13 @@ def _awaiting_confirmation(messages: list[Message]) -> ToolCall | None:
 
 
 def assistant_from_env() -> Assistant:
-    if os.environ.get("OVERHEARTH_ASSISTANT", os.environ.get("OVERHEARTH_DIALOGUE", "template")) == "bedrock":
+    """OVERHEARTH_ASSISTANT=bedrock, anthropic (the Claude API, for development) or anything else
+    for the keyword rules. Defaults to the OVERHEARTH_DIALOGUE setting."""
+    provider = os.environ.get("OVERHEARTH_ASSISTANT", os.environ.get("OVERHEARTH_DIALOGUE", "template"))
+    if provider == "bedrock":
         return BedrockAssistant()
+    if provider == "anthropic":
+        return ClaudeAssistant()
     return ScriptedAssistant()
 
 
