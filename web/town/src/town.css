@@ -75,3 +75,5 @@ button:disabled { opacity: 0.6; }
 .log details { margin-top: 4px; color: var(--muted); }
 .log details p { margin: 4px 0 0; }
 .log summary { cursor: pointer; font-size: 12px; }
+.arrival { fill: none; stroke: #ffcf7a; stroke-width: 3; opacity: 0; animation: arrive 1.6s ease-out forwards; }
+@keyframes arrive { 0% { r: 10; opacity: 0.95; } 100% { r: 46; opacity: 0; stroke-width: 1; } }

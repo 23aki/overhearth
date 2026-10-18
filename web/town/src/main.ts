@@ -173,8 +173,21 @@ function trail(from: string, to: string, kind: "encounter" | "thanks"): SVGEleme
     spark.append(motion);
     layer.append(spark);
     (motion as unknown as SVGAnimationElement).beginElement?.();
+    setTimeout(() => arrive(to), 1400);
   }
   return path;
+}
+
+/** A warm ring that opens over a home when thanks reach it. */
+function arrive(id: string): void {
+  const p = positions.get(id);
+  const layer = map.querySelector("#trails");
+  if (!p || !layer) return;
+  for (const delay of [0, 0.35]) {
+    const ring = svg("circle", { cx: p.x, cy: p.y, r: 10, class: "arrival" });
+    ring.style.animationDelay = `${delay}s`;
+    layer.append(ring);
+  }
 }
 
 async function replay(): Promise<void> {
@@ -183,8 +196,17 @@ async function replay(): Promise<void> {
   map.querySelector("#trails")?.replaceChildren();
   const lastTick = Math.max(0, ...state.events.map((e) => e.tick));
   const recent = state.events.filter((e) => e.tick === lastTick && (e.type === "encounter" || e.type === "thanks_flow"));
-  const viewerFirst = recent.sort((a, b) => Number(b.actors.includes(state!.viewer)) - Number(a.actors.includes(state!.viewer)));
-  for (const event of viewerFirst.slice(0, 14)) {
+  // Build up to the viewer's own story: a glimpse of the town, then the viewer's encounters,
+  // then thanks travelling home, with thanks to the viewer last.
+  const viewer = state.viewer;
+  const mine = (e: TownEvent) => e.actors.includes(viewer);
+  const others = recent.filter((e) => e.type === "encounter" && !mine(e)).slice(0, 8);
+  const own = recent.filter((e) => e.type === "encounter" && mine(e));
+  const flows = recent
+    .filter((e) => e.type === "thanks_flow")
+    .sort((a, b) => Number(a.detail.to === viewer) - Number(b.detail.to === viewer))
+    .slice(-4);
+  for (const event of [...others, ...own, ...flows]) {
     if (token !== replayToken) return;
     if (event.type === "encounter" && event.actors.length === 2) {
       trail(event.actors[0], event.actors[1], "encounter");
@@ -193,12 +215,12 @@ async function replay(): Promise<void> {
     } else if (event.type === "thanks_flow" && event.detail.to) {
       for (const from of event.detail.from ?? []) trail(from, event.detail.to, "thanks");
       caption.textContent = event.summary;
-      await wait(1800);
+      await wait(event.detail.to === viewer ? 3600 : 1800);
     }
   }
   if (token !== replayToken) return;
-  const own = recent.find((e) => e.type === "encounter" && e.actors.includes(state!.viewer));
-  caption.textContent = own?.summary ?? (recent.length ? "" : "A quiet time in town.");
+  const last = flows.find((e) => e.detail.to === viewer) ?? own[0];
+  caption.textContent = last?.summary ?? (recent.length ? "" : "A quiet time in town.");
 }
 
 let loading: Promise<void> | null = null;
