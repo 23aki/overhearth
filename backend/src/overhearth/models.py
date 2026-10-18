@@ -136,3 +136,13 @@ class IssuedToken(BaseModel):
     scope: str
     expires_at: datetime | None = None
     """None for the pre-issued demo tokens, which never expire."""
+
+
+class DeliverySettings(BaseModel):
+    """How a linked home wants things delivered in writing. Private: never shown to other homes."""
+
+    household_id: str
+    email: str | None = None
+    notify_thanks: bool = False
+    """Email the person when their shared know-how is thanked (at most once a day)."""
+    last_thanks_email_at: datetime | None = None

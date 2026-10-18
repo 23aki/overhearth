@@ -11,4 +11,5 @@ new OverhearthStack(app, "Overhearth", {
   demoTick: String(context("demoTick")) === "true",
   lambdaAdapterLayerVersion: Number(context("lambdaAdapterLayerVersion") ?? 25),
   bedrockModel: String(context("bedrockModel") ?? "global.anthropic.claude-haiku-5-5"),
+  mailFrom: String(context("mailFrom") ?? ""),
 });

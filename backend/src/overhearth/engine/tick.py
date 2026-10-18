@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from overhearth import kinds
+from overhearth.delivery import Mailer, notify_thanks
 from overhearth.engine.dialogue import AvatarBrief, DialogueGenerator, EncounterScript, Offer
 from overhearth.engine.residents import simulate_residents
 from overhearth.kinds import Carry, Effect, Event, ReportLine, TickContext
@@ -31,6 +32,7 @@ class TickResult:
     exchanges: int
     report_lines: int
     resident_thanks: int = 0
+    thanks_emails: int = 0
 
 
 def _offers(household: Household, store: Store) -> tuple[Offer, ...]:
@@ -81,6 +83,7 @@ def run_tick(
     rng: random.Random | None = None,
     out_ratio: float = 0.7,
     max_workers: int = 8,
+    mailer: Mailer | None = None,
 ) -> TickResult:
     at = at or utcnow()
     rng = rng or random.Random()
@@ -136,6 +139,9 @@ def run_tick(
             household_id, lines.get(household_id, []), met=met.get(household_id, []), at=at, since=since
         )
 
+    thanked = {hid for hid, items in lines.items() if any(item.kind == "thanks_return" for item in items)}
+    emails = notify_thanks(store, mailer, thanked, at) if mailer is not None else 0
+
     return TickResult(
         tick=tick,
         out=len(out),
@@ -143,4 +149,5 @@ def run_tick(
         exchanges=exchanges,
         report_lines=sum(len(v) for v in lines.values()),
         resident_thanks=resident_thanks,
+        thanks_emails=emails,
     )

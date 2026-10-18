@@ -17,6 +17,8 @@ from mcp_types import ToolAnnotations
 from pydantic import BaseModel, Field
 
 from overhearth import kinds
+from overhearth.assistant import RateLimiter
+from overhearth.delivery import Mailer, mailer_from_env, mask_email, report_email
 from overhearth.models import Household, KnowledgeEntry, Packet, PacketContext, ReportItem, TownEvent, utcnow
 from overhearth.store import Store
 
@@ -30,6 +32,7 @@ REPORT_PRIORITY = {"thanks_return": 0, "answer": 1, "tip": 2, "question": 3, "tr
 MAX_SPOKEN_ITEMS = 4
 """Keeps the spoken report well under the 30 second limit for an Alexa+ voice response."""
 APPEND_ONLY = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False)
+SENDS_EMAIL = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False, open_world_hint=True)
 
 
 class ThanksResult(BaseModel):
@@ -37,6 +40,16 @@ class ThanksResult(BaseModel):
     recorded: bool
     to: str | None = None
     """Who the thanks will travel back to, when it was for know-how from town."""
+
+
+class EmailResult(BaseModel):
+    speech: str
+    needs_confirmation: bool
+    to: str | None = Field(default=None, description="The address, masked.")
+    subject: str | None = None
+    body: str | None = None
+    sent: bool = False
+    dry_run: bool = Field(description="True when the email is only shown, not sent (demo homes).")
 
 
 class ShareResult(BaseModel):
@@ -92,7 +105,9 @@ def _town_html() -> str:
     return resources.files("overhearth").joinpath("ui/town.html").read_text(encoding="utf-8")
 
 
-def build_server(store: Store) -> MCPServer:
+def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
+    mailer = mailer or mailer_from_env()
+    email_limiter = RateLimiter(limit=5)
     apps = Apps()
 
     @apps.tool(
@@ -263,6 +278,58 @@ def build_server(store: Store) -> MCPServer:
             speech=f"{met}{' '.join(item.text for item in spoken)}{more}",
             met=report.met,
             items=items,
+        )
+
+    @mcp.tool(
+        name="email_report",
+        title="Email the town news",
+        description=(
+            "Send the person their town news in writing, by email: who their avatar met and what it "
+            "brought back. Call when they ask to have it emailed, sent to them, or written down. Call "
+            "first with confirmed=false and read the preview back; call again with confirmed=true only "
+            "after the person agrees."
+        ),
+        annotations=SENDS_EMAIL,
+    )
+    def email_report(ctx: Context, confirmed: bool = False) -> EmailResult:
+        household = _household(ctx, store)
+        report = store.latest_report(household.id)
+        if report is None or not report.items:
+            report = store.last_heard_report(household.id)
+        if report is None or not report.items:
+            return EmailResult(speech="There's no town news to send yet.", needs_confirmation=False, dry_run=True)
+        settings = store.get_delivery(household.id)
+        address = settings.email if settings and household.tier == "real" else None
+        will_send = bool(address) and mailer.sends
+        masked = mask_email(address) if address else None
+        subject, body = report_email(household, report)
+        if not confirmed:
+            if will_send:
+                speech = f"I'll email your town news to {masked}. Shall I send it?"
+            elif household.tier == "demo":
+                speech = "This is a demo home, so I'll put the email on screen instead of sending it. Okay?"
+            else:
+                speech = "There's no email set up for this home, so I'll put it on screen instead. Okay?"
+            return EmailResult(
+                speech=speech, needs_confirmation=True, to=masked, subject=subject, dry_run=not will_send
+            )
+        if will_send:
+            if not email_limiter.allow(household.id):
+                return EmailResult(
+                    speech="I've sent a few already. Let's try again later.", needs_confirmation=False, dry_run=False
+                )
+            mailer.send(address, subject, body)
+            speech = f"Sent to {masked}. There's a copy on screen too."
+        else:
+            speech = "Here it is on screen. Nothing was sent."
+        return EmailResult(
+            speech=speech,
+            needs_confirmation=False,
+            to=masked,
+            subject=subject,
+            body=body,
+            sent=will_send,
+            dry_run=not will_send,
         )
 
     return mcp

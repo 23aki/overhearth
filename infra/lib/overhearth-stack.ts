@@ -27,6 +27,8 @@ export interface OverhearthProps extends StackProps {
   lambdaAdapterLayerVersion: number;
   /** Bedrock model or inference profile id. */
   bedrockModel: string;
+  /** Verified SES sender for emails to linked homes. Empty: emails are only shown (dry run). */
+  mailFrom: string;
 }
 
 /**
@@ -75,13 +77,18 @@ export class OverhearthStack extends Stack {
         `arn:aws:bedrock:*:${this.account}:inference-profile/*`,
       ],
     });
-    const shared = {
+    const shared: Record<string, string> = {
       OVERHEARTH_STORE: "dynamo",
       OVERHEARTH_TABLE: table.tableName,
       OVERHEARTH_DIALOGUE: "bedrock",
       OVERHEARTH_ASSISTANT: "bedrock",
       OVERHEARTH_BEDROCK_MODEL: props.bedrockModel,
+      ...(props.mailFrom ? { OVERHEARTH_MAILER: "ses", OVERHEARTH_MAIL_FROM: props.mailFrom } : {}),
     };
+    const sendEmail = new iam.PolicyStatement({
+      actions: ["ses:SendEmail"],
+      resources: [`arn:aws:ses:${this.region}:${this.account}:identity/*`],
+    });
 
     const adapter = lambda.LayerVersion.fromLayerVersionArn(
       this,
@@ -112,6 +119,7 @@ export class OverhearthStack extends Stack {
     });
     table.grantReadWriteData(api);
     api.addToRolePolicy(bedrock);
+    if (props.mailFrom) api.addToRolePolicy(sendEmail);
 
     const alias = new lambda.Alias(this, "ApiLive", {
       aliasName: "live",
@@ -137,6 +145,7 @@ export class OverhearthStack extends Stack {
     });
     table.grantReadWriteData(tick);
     tick.addToRolePolicy(bedrock);
+    if (props.mailFrom) tick.addToRolePolicy(sendEmail);
     new events.Rule(this, "EveryHalfHour", {
       schedule: events.Schedule.rate(Duration.minutes(30)),
       targets: [new targets.LambdaFunction(tick, { retryAttempts: 0 })],
