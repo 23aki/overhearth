@@ -146,3 +146,17 @@ def test_demo_homes_always_go_out(store):
     run_tick(store, TemplateDialogue(), rng=random.Random(0), out_ratio=0.0)
     met = {h.id for h in store.households() if (r := store.latest_report(h.id)) and r.met}
     assert {"hh_tokyo", "hh_osaka"} <= met
+
+
+def test_the_lambda_tick_handler_runs_a_tick(monkeypatch):
+    from overhearth import lambda_tick
+
+    monkeypatch.setenv("OVERHEARTH_STORE", "memory")
+    monkeypatch.setenv("OVERHEARTH_SEED", "dev")
+    monkeypatch.setenv("OVERHEARTH_DIALOGUE", "template")
+    monkeypatch.setattr(lambda_tick, "_store", None)
+    first = lambda_tick.handler({}, None)
+    second = lambda_tick.handler({}, None)
+    assert first["tick"] == 1
+    assert second["tick"] == 2
+    assert first["encounters"] >= 1

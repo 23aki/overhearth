@@ -1,8 +1,17 @@
-export const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "http://127.0.0.1:8000";
+interface RuntimeConfig {
+  backendUrl?: string;
+  devTick?: boolean;
+}
+
+/** Set by /config.js, which the deployment writes; falls back to Vite env variables. */
+const runtime: RuntimeConfig = (window as { __OVERHEARTH__?: RuntimeConfig }).__OVERHEARTH__ ?? {};
+
+export const BACKEND_URL =
+  runtime.backendUrl ?? (import.meta.env.VITE_BACKEND_URL as string | undefined) ?? "http://127.0.0.1:8000";
 export const MCP_URL = `${BACKEND_URL}/mcp`;
 export const ASSISTANT_URL = `${BACKEND_URL}/assistant/turn`;
 export const DEV_TICK_URL = `${BACKEND_URL}/dev/tick`;
-export const SHOW_DEV_TICK = import.meta.env.VITE_DEV_TICK === "1";
+export const SHOW_DEV_TICK = runtime.devTick ?? import.meta.env.VITE_DEV_TICK === "1";
 
 export interface DemoHousehold {
   token: string;

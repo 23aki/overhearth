@@ -194,9 +194,12 @@ if (SHOW_DEV_TICK) {
     tick.disabled = true;
     tick.textContent = "Avatars are out in town…";
     try {
-      const response = await fetch(DEV_TICK_URL, { method: "POST" });
-      const result = (await response.json()) as { encounters?: number };
-      tick.textContent = `Town time advanced (${result.encounters ?? 0} encounters)`;
+      const response = await fetch(DEV_TICK_URL, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${current.token}` },
+      });
+      const result = (await response.json()) as { encounters?: number; error?: string };
+      tick.textContent = response.ok ? `Town time advanced (${result.encounters ?? 0} encounters)` : (result.error ?? "Could not advance time");
     } catch {
       tick.textContent = "Could not advance time";
     } finally {

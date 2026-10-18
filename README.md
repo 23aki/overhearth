@@ -25,6 +25,7 @@ Built for the Amazon Developer "Build, Ship, Shape" hackathon (Alexa+ track).
 |---|---|
 | `backend/` | Python MCP server, data model, exchange kinds, storage |
 | `web/` | Simulated Alexa+ client (TypeScript, Vite): an Echo Show-like page that is a real MCP client |
+| `infra/` | AWS CDK app (TypeScript) for the deployment |
 
 ## Run the backend locally
 
@@ -62,7 +63,8 @@ curl -X POST http://127.0.0.1:8000/dev/tick
 | `OVERHEARTH_DIALOGUE` | `template` | `bedrock` to generate dialogue with Strands Agents on Bedrock |
 | `OVERHEARTH_BEDROCK_MODEL` | `global.anthropic.claude-haiku-5-5` | Bedrock model or inference profile id |
 | `OVERHEARTH_SEED` | `town` | `town` for the demo town, `dev` for a tiny town used in tests |
-| `OVERHEARTH_DEV_ENDPOINTS` | unset | `1` enables `POST /dev/tick` |
+| `OVERHEARTH_DEV_ENDPOINTS` | unset | `1` enables `POST /dev/tick` (needs a linked home's token; at most once per 30 seconds) |
+| `OVERHEARTH_STORE` | `memory` | `dynamo` to use DynamoDB (`OVERHEARTH_TABLE`) |
 | `AWS_REGION` | `us-east-1` | Region for Bedrock |
 
 ## Run the simulated Alexa+ client
@@ -140,6 +142,46 @@ In the web client, pick "Link your own home…" in the home menu to run the flow
 | `OVERHEARTH_PUBLIC_URL` | from the request | Public origin used in the metadata (set it behind a proxy or API gateway) |
 | `OVERHEARTH_WEB_REDIRECTS` | `http://localhost:5173/,http://127.0.0.1:5173/` | Redirect URIs allowed for the web client |
 | `OVERHEARTH_OAUTH_CLIENTS` | unset | JSON list of confidential clients: `client_id`, `client_secret`, `redirect_uris`, `name`. Keep it out of the repository |
+
+## Deploy to AWS
+
+```text
+Echo Show (simulated) ── CloudFront + S3: the web client
+        │ MCP (Streamable HTTP), OAuth, POST /assistant/turn
+        ▼
+API Gateway HTTP API ── Lambda (ASGI app via the Lambda Web Adapter) ── Bedrock
+                                         │
+EventBridge (every 30 min) ── Lambda: town tick ── Bedrock
+                                         │
+                                     DynamoDB (one table)
+```
+
+- `OVERHEARTH_STORE=dynamo` switches the server and the tick to DynamoDB (`OVERHEARTH_TABLE`).
+  The same tests run against both stores, with DynamoDB mocked by moto.
+- The Lambda bundle is built without Docker. `scripts/build_lambda.py` installs Linux wheels
+  for Python 3.11 and writes `backend/build/lambda.zip`.
+- The web client reads the backend URL from `/config.js`, which the deployment writes.
+
+The deploying AWS identity needs to create CloudFormation stacks, IAM roles, Lambda functions,
+API Gateway, DynamoDB, S3, CloudFront, EventBridge rules and log groups, and to run
+`cdk bootstrap` once. Bedrock model access for the chosen model must be enabled in the account.
+
+```sh
+cd backend && uv run python scripts/build_lambda.py
+cd ../web && npm ci && npm run build
+cd ../infra && npm ci
+npx cdk bootstrap --profile <deploy-profile>           # once per account and region
+npx cdk deploy --profile <deploy-profile> -c demoTick=true -c provisionedConcurrency=1
+# load the demo town into the new table (TableName is printed by cdk deploy)
+cd ../backend && AWS_PROFILE=<deploy-profile> uv run python -m overhearth.store.dynamo --table <TableName>
+```
+
+| Context (`-c`) | Default | Meaning |
+|---|---|---|
+| `demoTick` | `false` | Show "Advance town time". `POST /dev/tick` then needs a linked home's token and runs at most once per 30 seconds |
+| `provisionedConcurrency` | `0` | Warm API instances. `1` keeps the first call fast, at a small hourly cost |
+| `lambdaAdapterLayerVersion` | `25` | Version of the public Lambda Web Adapter layer |
+| `bedrockModel` | `global.anthropic.claude-haiku-5-5` | Model or inference profile for the Alexa layer and the avatars |
 
 ## Data and privacy
 
