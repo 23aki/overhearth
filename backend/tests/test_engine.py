@@ -107,3 +107,36 @@ def test_first_tick_returns_thanks_said_just_before_it(store):
     )
     _tick(store, at=now)
     assert _items(store, "hh_osaka", "thanks_return")
+
+
+def test_plural_and_singular_topics_match():
+    from overhearth.text import MIN_RELEVANCE, relevance
+
+    assert relevance("late dinners in ten minutes", "quick dinner", "Ten-minute egg") >= MIN_RELEVANCE
+
+
+def test_questions_and_tips_are_offered_before_thanks(store):
+    from overhearth.engine.tick import _offers
+
+    offers = _offers(store.get_household("hh_osaka"), store)
+    assert offers[0].kind == "tip"
+
+
+def test_unrelated_tips_do_not_count_as_answers():
+    from overhearth.text import answers
+
+    question = "late dinners What can I cook in ten minutes after getting home late?"
+    assert answers(question, "quick dinner", "Ten-minute egg and spinach on rice.")
+    assert not answers(question, "staying active", "Dance through one song while dinner cooks.")
+    assert not answers(question, "sleep after night shifts", "Wear sunglasses on the way home after a night shift.")
+    assert not answers(question, "dogs at home", "Freeze peanut butter inside a chew toy.")
+
+
+def test_new_city_question_matches_new_city_tip():
+    from overhearth.text import answers
+
+    assert answers(
+        "homesick Small things that help when you feel homesick in a new city?",
+        "new city",
+        "Visit the local library first.",
+    )

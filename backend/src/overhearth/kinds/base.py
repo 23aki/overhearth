@@ -82,6 +82,8 @@ class KindHandler(ABC):
     payload_model: ClassVar[type[BaseModel]]
     encounter_order: ClassVar[int] = 100
     """Lower runs first when several packets change hands in one encounter."""
+    offer_priority: ClassVar[int] = 100
+    """Lower is offered first when an avatar picks what to bring into town."""
 
     def validate(self, payload: dict[str, Any]) -> dict[str, Any]:
         """Check the payload against the kind's schema and scrub free text."""

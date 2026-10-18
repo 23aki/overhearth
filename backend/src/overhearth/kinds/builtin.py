@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from collections import defaultdict
 from datetime import timedelta
 from typing import Any
@@ -10,9 +11,11 @@ from pydantic import BaseModel, Field
 
 from overhearth.kinds.base import Carry, Effect, Event, KindHandler, ReportLine, TickContext
 from overhearth.models import Household, Packet, ReportItem, TownEvent
-from overhearth.text import MIN_RELEVANCE, relevance
+from overhearth.text import answers, relevance
 
 TREND_WINDOW = timedelta(days=7)
+TREND_CANDIDATES = 6
+"""Each home hears two of the most-thanked themes, picked per home so trends vary."""
 
 
 class TipPayload(BaseModel):
@@ -25,6 +28,7 @@ class Tip(KindHandler):
 
     kind = "tip"
     payload_model = TipPayload
+    offer_priority = 10
 
     def to_town_summary(self, packet: Packet) -> str:
         return f"A tip about {packet.payload['topic']}: {packet.payload['text']}"
@@ -77,27 +81,30 @@ class Question(KindHandler):
     kind = "question"
     payload_model = QuestionPayload
     encounter_order = 0
+    offer_priority = 0
     """Answer questions before tips in the same encounter are handed over as plain tips."""
 
     def to_town_summary(self, packet: Packet) -> str:
         return f"My person is wondering about {packet.payload['topic']}: {packet.payload['text']}"
 
-    def _best_known_tip(self, question: Packet, knower: Household, ctx: TickContext) -> Packet | None:
+    def _best_known_tip(self, question: Packet, knower_id: str, ctx: TickContext) -> Packet | None:
+        """The best tip the household knows (shared or picked up) that answers the question."""
         query = f"{question.payload['topic']} {question.payload['text']}"
-        known = [p for p in ctx.store.packets(kind="tip", origin=knower.id)]
-        known += [p for pid in ctx.store.carried(knower.id) if (p := ctx.store.get_packet(pid)) and p.kind == "tip"]
-        scored = [(relevance(query, p.payload["topic"], p.payload["text"]), p) for p in known]
-        scored = [(score, p) for score, p in scored if score >= MIN_RELEVANCE]
+        known = ctx.store.packets(kind="tip", origin=knower_id)
+        known += [p for pid in ctx.store.carried(knower_id) if (p := ctx.store.get_packet(pid)) and p.kind == "tip"]
+        scored = [
+            (relevance(query, p.payload["topic"], p.payload["text"]), p)
+            for p in known
+            if answers(query, p.payload["topic"], p.payload["text"])
+        ]
         return max(scored, key=lambda s: s[0])[1] if scored else None
 
     def on_encounter(self, packet: Packet, carrier: Household, listener: Household, ctx: TickContext) -> list[Effect]:
         asker_id = packet.origin_household
-        if listener.id == asker_id:
-            return []
+        if listener.id == asker_id or self._best_known_tip(packet, asker_id, ctx):
+            return []  # asked by this home, or the home already has an answer
         topic = packet.payload["topic"]
-        tip = self._best_known_tip(packet, listener, ctx)
-        if tip and (tip.origin_household == asker_id or tip.id in ctx.store.carried(asker_id)):
-            return []
+        tip = self._best_known_tip(packet, listener.id, ctx)
         if tip:
             return [
                 Carry(asker_id, tip.id),
@@ -168,6 +175,7 @@ class Thanks(KindHandler):
 
     kind = "thanks"
     payload_model = ThanksPayload
+    offer_priority = 20
 
     def to_town_summary(self, packet: Packet) -> str:
         return f"My person thanked me for: {packet.payload['what_helped']}"
@@ -183,7 +191,8 @@ class Thanks(KindHandler):
                     at=ctx.at,
                     type="exchange",
                     actors=[carrier.id, listener.id],
-                    summary=f"{carrier.avatar_name} told {listener.avatar_name} what its home was thankful for.",
+                    summary=f"{carrier.avatar_name} told {listener.avatar_name} its home was thankful for "
+                    f"{packet.payload['what_helped']}.",
                     refs=[packet.id],
                     detail={"kind": self.kind},
                 )
@@ -247,11 +256,12 @@ class Thanks(KindHandler):
             pending = ctx.store.latest_report(household_id)
             if pending and any(item.kind == "trend" for item in pending.items):
                 continue
-            themes = sorted(
+            ranked = sorted(
                 ((len(homes - {household_id}), theme) for theme, homes in homes_by_theme.items()),
                 reverse=True,
             )
-            themes = [theme for count, theme in themes if count >= 2][:2]
+            candidates = [theme for count, theme in ranked if count >= 2][:TREND_CANDIDATES]
+            themes = random.Random(f"{household_id}:{ctx.tick}").sample(candidates, min(2, len(candidates)))
             if not themes:
                 continue
             effects.append(

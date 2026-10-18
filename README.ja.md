@@ -34,7 +34,7 @@ uv run pytest
 uv run python scripts/measure_latency.py --token demo-tokyo
 ```
 
-ローカルのサーバーは、模擬の小さな町の状態で起動します。デモの家は Bearer トークンで選びます（`demo-tokyo`、`demo-osaka`）。
+ローカルのサーバーは、デモの町の状態で起動します。デモの家4軒と背景の家30軒で、すべて模擬のものです（`backend/src/overhearth/fixtures/town.json`）。デモの家は Bearer トークンで選びます: `demo-tokyo`、`demo-osaka`、`demo-seattle`、`demo-austin`。
 
 ### 町のエンジン
 
@@ -53,6 +53,7 @@ curl -X POST http://127.0.0.1:8000/dev/tick
 |---|---|---|
 | `OVERHEARTH_DIALOGUE` | `template` | `bedrock` にすると、Bedrock 上の Strands Agents で会話を生成する |
 | `OVERHEARTH_BEDROCK_MODEL` | `global.anthropic.claude-haiku-5-5` | Bedrock のモデル ID か推論プロファイル ID |
+| `OVERHEARTH_SEED` | `town` | `town` はデモの町、`dev` はテスト用の小さな町 |
 | `OVERHEARTH_DEV_ENDPOINTS` | 未設定 | `1` にすると `POST /dev/tick` が使える |
 | `AWS_REGION` | `us-east-1` | Bedrock のリージョン |
 

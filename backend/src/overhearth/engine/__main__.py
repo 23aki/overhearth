@@ -12,6 +12,7 @@ import random
 
 from overhearth.dev_seed import seeded_store
 from overhearth.engine import BedrockDialogue, TemplateDialogue, run_tick
+from overhearth.town_seed import seeded_town
 
 
 def main() -> None:
@@ -19,20 +20,22 @@ def main() -> None:
     parser.add_argument("--ticks", type=int, default=1)
     parser.add_argument("--bedrock", action="store_true")
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--small", action="store_true", help="use the tiny dev town instead of the demo town")
+    parser.add_argument("--show", type=int, default=12, help="how many recent events to print")
     args = parser.parse_args()
     logging.basicConfig(level=logging.WARNING)
 
-    store = seeded_store()
+    store = seeded_store() if args.small else seeded_town()
     dialogue = BedrockDialogue() if args.bedrock else TemplateDialogue()
     rng = random.Random(args.seed)
     for _ in range(args.ticks):
         result = run_tick(store, dialogue, rng=rng, out_ratio=1.0)
         print(f"tick {result.tick}: {result}")
-    for event in store.town_events(limit=50):
+    for event in store.town_events(limit=args.show):
         print(f"  [{event.type}] {event.summary}")
         for line in event.detail.get("lines", []):
             print(f"      {line['speaker']}: {line['text']}")
-    for household in store.households():
+    for household in [h for h in store.households() if h.tier != "background"]:
         report = store.latest_report(household.id)
         if report and report.items:
             print(f"\n{household.avatar_name} ({household.label}) met {report.met}:")

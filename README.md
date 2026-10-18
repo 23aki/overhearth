@@ -38,8 +38,9 @@ uv run pytest
 uv run python scripts/measure_latency.py --token demo-tokyo
 ```
 
-The local server starts with a small simulated town. Demo households are selected with a bearer
-token (`demo-tokyo`, `demo-osaka`).
+The local server starts with the demo town: 4 demo households and 30 background households, all
+simulated (`backend/src/overhearth/fixtures/town.json`). Demo households are selected with a bearer
+token: `demo-tokyo`, `demo-osaka`, `demo-seattle`, `demo-austin`.
 
 ### Town engine
 
@@ -60,6 +61,7 @@ curl -X POST http://127.0.0.1:8000/dev/tick
 |---|---|---|
 | `OVERHEARTH_DIALOGUE` | `template` | `bedrock` to generate dialogue with Strands Agents on Bedrock |
 | `OVERHEARTH_BEDROCK_MODEL` | `global.anthropic.claude-haiku-5-5` | Bedrock model or inference profile id |
+| `OVERHEARTH_SEED` | `town` | `town` for the demo town, `dev` for a tiny town used in tests |
 | `OVERHEARTH_DEV_ENDPOINTS` | unset | `1` enables `POST /dev/tick` |
 | `AWS_REGION` | `us-east-1` | Region for Bedrock |
 

@@ -111,7 +111,7 @@ class BedrockDialogue:
         self._model = BedrockModel(
             model_id=model_id or os.environ.get("OVERHEARTH_BEDROCK_MODEL", DEFAULT_MODEL_ID),
             boto_session=session,
-            max_tokens=500,
+            max_tokens=1000,
             streaming=False,
             additional_request_fields={"thinking": {"type": "disabled"}},
         )
@@ -136,8 +136,8 @@ class BedrockDialogue:
         try:
             result = agent(self._prompt(a, b), structured_output_model=EncounterScript)
             return sanitize(result.structured_output, a, b)
-        except Exception:
-            log.exception("dialogue generation failed for %s and %s; using the template", a.name, b.name)
+        except Exception as error:
+            log.warning("dialogue for %s and %s fell back to the template: %s", a.name, b.name, type(error).__name__)
             return self._fallback.generate(a, b)
 
 
