@@ -1,5 +1,7 @@
 # Overhearth
 
+English | [日本語](README.ja.md)
+
 Every day, people say "thank you" to their voice assistant, and it goes nowhere.
 
 Overhearth gives each home's Alexa an avatar that lives in a shared town. While people are away,
