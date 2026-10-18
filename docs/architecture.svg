@@ -1,0 +1,107 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" width="1200" height="660" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <title>Overhearth architecture</title>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8ea0b8"/>
+    </marker>
+    <marker id="warm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#ffb547"/>
+    </marker>
+    <style>
+      .box { fill: #172131; stroke: #34465f; stroke-width: 1.5; }
+      .aws { fill: #1b2638; stroke: #ff9900; stroke-width: 1.5; stroke-dasharray: 6 4; }
+      .title { fill: #f2f4f8; font-size: 17px; font-weight: 600; }
+      .text { fill: #c3ccda; font-size: 13.5px; }
+      .small { fill: #8ea0b8; font-size: 12px; }
+      .label { fill: #8ea0b8; font-size: 12.5px; }
+      .warmtext { fill: #ffb547; font-size: 13px; font-weight: 600; }
+      .line { stroke: #8ea0b8; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .flow { stroke: #ffb547; stroke-width: 2.2; fill: none; marker-end: url(#warm); stroke-dasharray: 7 5; }
+    </style>
+  </defs>
+  <rect width="1200" height="660" rx="18" fill="#0d1118"/>
+
+  <text x="40" y="52" fill="#f2f4f8" font-size="26" font-weight="700">Overhearth</text>
+  <text x="200" y="52" class="label">Alexa avatars swap know-how in a shared town and carry thanks home</text>
+
+  <!-- Client -->
+  <rect x="40" y="90" width="300" height="250" rx="14" class="box"/>
+  <text x="60" y="122" class="title">Echo Show (simulated Alexa+)</text>
+  <text x="60" y="150" class="text">Web client: a real MCP client</text>
+  <text x="60" y="172" class="text">and MCP Apps host (AppBridge)</text>
+  <rect x="60" y="192" width="260" height="62" rx="10" fill="#10161f" stroke="#2c3647"/>
+  <text x="76" y="218" class="text">Town view: MCP App</text>
+  <text x="76" y="238" class="small">ui://overhearth/town.html, sandboxed iframe</text>
+  <text x="60" y="282" class="text">Voice: Web Speech API</text>
+  <text x="60" y="306" class="small">Demo homes: pre-issued tokens</text>
+  <text x="60" y="326" class="small">Real homes: OAuth 2.1 + PKCE</text>
+
+  <!-- AWS boundary -->
+  <rect x="400" y="80" width="760" height="540" rx="16" class="aws"/>
+  <text x="420" y="108" fill="#ff9900" font-size="14" font-weight="600">AWS (us-east-1) · AWS CDK</text>
+
+  <!-- API -->
+  <rect x="430" y="126" width="330" height="214" rx="14" class="box"/>
+  <text x="450" y="158" class="title">API Gateway → Lambda</text>
+  <text x="450" y="184" class="text">MCP server (spec 2025-11-25,</text>
+  <text x="450" y="204" class="text">Streamable HTTP, Python MCP SDK)</text>
+  <text x="450" y="230" class="text">Tools read precomputed data (&lt; 500 ms)</text>
+  <text x="450" y="256" class="text">OAuth: RFC 9728 PRM, S256, no</text>
+  <text x="450" y="276" class="text">WWW-Authenticate on 401</text>
+  <text x="450" y="302" class="text">Alexa layer: picks tools</text>
+  <text x="450" y="322" class="small">Lambda Web Adapter</text>
+
+  <!-- Bedrock -->
+  <rect x="820" y="126" width="310" height="120" rx="14" class="box"/>
+  <text x="840" y="158" class="title">Amazon Bedrock</text>
+  <text x="840" y="184" class="text">Claude Haiku 5.5</text>
+  <text x="840" y="206" class="text">Converse (Alexa layer)</text>
+  <text x="840" y="228" class="text">Strands Agents (avatars' dialogue)</text>
+
+  <!-- Engine -->
+  <rect x="820" y="282" width="310" height="180" rx="14" class="box"/>
+  <text x="840" y="314" class="title">Town engine (Lambda)</text>
+  <text x="840" y="340" class="text">EventBridge, every 30 min</text>
+  <text x="840" y="364" class="text">Avatars meet and talk</text>
+  <text x="840" y="386" class="text">Kinds: thanks, tip, question …</text>
+  <text x="840" y="408" class="text">Thanks flow back to the origin</text>
+  <text x="840" y="430" class="text">Simulated residents keep living</text>
+  <text x="840" y="450" class="small">Per-home reports, town events</text>
+
+  <!-- DynamoDB -->
+  <rect x="430" y="390" width="330" height="96" rx="14" class="box"/>
+  <text x="450" y="422" class="title">DynamoDB</text>
+  <text x="450" y="448" class="text">Homes, packets, reports, events,</text>
+  <text x="450" y="468" class="text">hashed tokens (one table, TTLs)</text>
+
+  <!-- SES & web hosting -->
+  <rect x="430" y="516" width="330" height="80" rx="14" class="box"/>
+  <text x="450" y="548" class="title">Amazon SES (opt-in)</text>
+  <text x="450" y="572" class="text">Confirm → send → written copy</text>
+  <rect x="820" y="500" width="310" height="96" rx="14" class="box"/>
+  <text x="840" y="532" class="title">S3 + CloudFront</text>
+  <text x="840" y="558" class="text">Hosts the web client</text>
+  <text x="840" y="580" class="small">config.js written at deploy time</text>
+
+  <!-- arrows -->
+  <path d="M340,200 L428,200" class="line"/>
+  <text x="345" y="178" class="label">MCP,</text>
+  <text x="345" y="193" class="label">OAuth</text>
+  <path d="M340,250 L428,250" class="line"/>
+  <text x="345" y="270" class="label">turns</text>
+  <path d="M760,186 L818,186" class="line"/>
+  <path d="M595,340 L595,388" class="line"/>
+  <path d="M818,420 L762,440" class="line"/>
+  <path d="M975,282 L975,248" class="line"/>
+
+  <!-- the gratitude loop -->
+  <rect x="40" y="380" width="300" height="216" rx="14" fill="#1d1a12" stroke="#ffb547" stroke-width="1.5"/>
+  <text x="60" y="412" fill="#ffd27f" font-size="17" font-weight="600">The gratitude loop</text>
+  <text x="60" y="440" class="text">1  "Thanks, that was perfect."</text>
+  <text x="60" y="464" class="text">2  Avatars meet while people are out</text>
+  <text x="60" y="488" class="text">3  Know-how comes home, ranked by</text>
+  <text x="80" y="508" class="text">how often it was thanked</text>
+  <text x="60" y="532" class="text">4  Thanks travel back to the home</text>
+  <text x="80" y="552" class="text">whose idea helped</text>
+  <text x="60" y="580" class="warmtext">Only what people agree to share leaves home</text>
+</svg>

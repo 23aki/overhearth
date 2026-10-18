@@ -19,6 +19,8 @@ Built for the Amazon Developer "Build, Ship, Shape" hackathon (Alexa+ track).
 - The Alexa+ conversation layer is simulated in a web client, because the official Alexa+ add-on
   tooling is not available to hackathon participants. The backend and the agent workflows are real.
 
+![Overhearth architecture](docs/architecture.svg)
+
 ## Layout
 
 | Path | What |

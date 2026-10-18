@@ -15,6 +15,8 @@ Amazon Developer の「Build, Ship, Shape」ハッカソン（Alexa+ トラッ�
 - `backend/` は自前でホストする MCP サーバーです（仕様 2025-11-25、Streamable HTTP）。町の表示は MCP App（`ui://overhearth/town.html`）として提供します。
 - Alexa+ との会話の部分は、Web クライアントで再現しています。Alexa+ の公式の add-on 開発ツールは、ハッカソンの参加者には提供されていないためです。バックエンドとエージェントの処理は本物です。
 
+![Overhearth の構成図](docs/architecture.svg)
+
 ## 構成
 
 | パス | 内容 |
