@@ -1,3 +1,4 @@
+import { mountApp } from "./apphost";
 import { type Message, type ToolEvent, runTurn } from "./assistant";
 import { renderToolEvent, townPlaceholder } from "./cards";
 import { DEMO_HOUSEHOLDS, DEV_TICK_URL, SHOW_DEV_TICK } from "./config";
@@ -26,6 +27,8 @@ const tick = $<HTMLButtonElement>("tick");
 const homes = new Map<string, Home>(DEMO_HOUSEHOLDS.map((h) => [h.token, { token: h.token, mcp: null, history: [], lines: [] }]));
 let current = homes.get(DEMO_HOUSEHOLDS[0].token)!;
 let busy = false;
+let teardownApp: (() => Promise<void>) | null = null;
+const screen = document.querySelector<HTMLElement>(".device") ?? document.body;
 
 function setRing(state: RingState): void {
   ring.dataset.state = state;
@@ -54,10 +57,32 @@ async function ensureConnected(home: Home): Promise<McpConnection> {
   return home.mcp;
 }
 
+/** Replace whatever is on screen, closing a running MCP App view first. */
+function clearPanel(): void {
+  const teardown = teardownApp;
+  teardownApp = null;
+  if (teardown) void teardown();
+}
+
 function onTool(event: ToolEvent): void {
-  const tool = current.mcp?.tools.get(event.call.name);
-  if (tool?.resourceUri && !event.outcome.isError) {
-    townPlaceholder(panel);
+  const mcp = current.mcp;
+  const tool = mcp?.tools.get(event.call.name);
+  clearPanel();
+  if (mcp && tool?.resourceUri && !event.outcome.isError) {
+    const frame = townPlaceholder(panel);
+    const showing = mountApp(frame, mcp, tool.resourceUri, event, {
+      onUserMessage: (text) => void handle(text),
+      onDisplayMode: (mode) => screen.classList.toggle("fullscreen", mode === "fullscreen"),
+    });
+    showing.then(
+      (teardown) => {
+        if (frame.isConnected) teardownApp = teardown;
+        else void teardown();
+      },
+      () => {
+        if (frame.isConnected) renderToolEvent(panel, event);
+      },
+    );
     return;
   }
   renderToolEvent(panel, event);
@@ -93,6 +118,7 @@ function fillPicker(): void {
   }
   picker.addEventListener("change", () => {
     stopSpeaking();
+    clearPanel();
     current = homes.get(picker.value)!;
     drawTranscript();
     const hint = document.createElement("p");

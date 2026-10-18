@@ -37,6 +37,14 @@ def test_town_ui_resource_is_an_mcp_app(server_url):
     assert "<html" in content["text"]
 
 
+def test_town_state_is_structured_for_the_view(server_url):
+    result, _ = _client(server_url).call_tool("get_town_state")
+    state = result["structuredContent"]
+    assert state["viewer"] == "hh_tokyo"
+    assert {h["id"] for h in state["homes"]} >= {"hh_tokyo", "hh_osaka"}
+    assert all({"avatar", "glow", "region"} <= set(h) for h in state["homes"])
+
+
 def test_unlinked_household_gets_a_tool_error(server_url):
     result, _ = _client(server_url, token="nope").call_tool("town_report")
     assert result["isError"] is True

@@ -17,7 +17,7 @@ from mcp_types import ToolAnnotations
 from pydantic import BaseModel, Field
 
 from overhearth import kinds
-from overhearth.models import Household, KnowledgeEntry, Packet, PacketContext, ReportItem, utcnow
+from overhearth.models import Household, KnowledgeEntry, Packet, PacketContext, ReportItem, TownEvent, utcnow
 from overhearth.store import Store
 
 TOWN_UI_URI = "ui://overhearth/town.html"
@@ -63,6 +63,21 @@ class TownResult(BaseModel):
     events: int
 
 
+class TownHome(BaseModel):
+    id: str
+    label: str
+    avatar: str
+    tier: str
+    region: str
+    glow: int = Field(description="How many times know-how from this home was thanked.")
+
+
+class TownState(BaseModel):
+    viewer: str = Field(description="The household looking at the town.")
+    homes: list[TownHome]
+    events: list[TownEvent]
+
+
 def _household(ctx: Context, store: Store) -> Household:
     headers = ctx.headers or {}
     auth = headers.get("authorization", "")
@@ -106,9 +121,9 @@ def build_server(store: Store) -> MCPServer:
         description="Town map, home lights and recent events for the town view.",
         annotations=READ_ONLY,
     )
-    def get_town_state(ctx: Context) -> dict:
+    def get_town_state(ctx: Context) -> TownState:
         household = _household(ctx, store)
-        return {"viewer": household.id, **store.town_state()}
+        return TownState.model_validate({"viewer": household.id, **store.town_state()})
 
     apps.add_html_resource(TOWN_UI_URI, _town_html(), name="town", title="Overhearth town")
 

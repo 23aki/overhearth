@@ -130,3 +130,6 @@ button:disabled { opacity: 0.6; cursor: default; }
   .screen { grid-template-columns: 1fr; aspect-ratio: auto; }
   .convo { border-right: 0; border-bottom: 1px solid var(--line); }
 }
+.panel:has(.app-frame) { padding: 8px; overflow: hidden; }
+.device.fullscreen .screen { grid-template-columns: 1fr; }
+.device.fullscreen .convo { display: none; }

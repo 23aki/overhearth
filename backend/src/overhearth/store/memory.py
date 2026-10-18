@@ -12,6 +12,10 @@ FIRST_TICK_LOOKBACK = timedelta(hours=1)
 """On the very first tick, aggregate what happened in the last hour."""
 
 
+TOWN_VIEW_EVENTS = 80
+"""How many recent town events the town view gets for its log and replay."""
+
+
 class MemoryStore:
     def __init__(self) -> None:
         self._households: dict[str, Household] = {}
@@ -134,9 +138,10 @@ class MemoryStore:
                     "label": h.label,
                     "avatar": h.avatar_name,
                     "tier": h.tier,
+                    "region": h.region,
                     "glow": glow.get(h.id, 0),
                 }
                 for h in self._households.values()
             ],
-            "events": [e.model_dump(mode="json") for e in self.town_events(limit=20)],
+            "events": [e.model_dump(mode="json") for e in self.town_events(limit=TOWN_VIEW_EVENTS)],
         }
