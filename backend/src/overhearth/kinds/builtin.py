@@ -206,20 +206,26 @@ class Thanks(KindHandler):
 
     def _returns(self, ctx: TickContext) -> list[Effect]:
         """Thanks for a tip flow back to whoever shared the tip."""
-        by_tip: dict[str, list[Packet]] = defaultdict(list)
+        all_by_tip: dict[str, list[Packet]] = defaultdict(list)
         for thanks in ctx.store.packets(kind=self.kind):
-            if thanks.created_at > ctx.since and thanks.payload.get("tip_id"):
-                by_tip[thanks.payload["tip_id"]].append(thanks)
+            if thanks.payload.get("tip_id"):
+                all_by_tip[thanks.payload["tip_id"]].append(thanks)
         effects: list[Effect] = []
-        for tip_id, thanks in by_tip.items():
+        for tip_id, every in all_by_tip.items():
             tip = ctx.store.get_packet(tip_id)
             if tip is None:
                 continue
-            thanks = [t for t in thanks if t.origin_household != tip.origin_household]
+            every = [t for t in every if t.origin_household != tip.origin_household]
+            thanks = [t for t in every if t.created_at > ctx.since]
             if not thanks:
                 continue
-            homes = sorted({t.origin_household for t in thanks})
-            times = "once" if len(thanks) == 1 else f"{len(thanks)} times"
+            # The report line counts everything since the home last heard its report, and
+            # replaces the earlier line about the same tip, so it is said once and up to date.
+            pending = ctx.store.latest_report(tip.origin_household)
+            heard_at = pending.since if pending else ctx.since
+            unheard = [t for t in every if t.created_at > heard_at]
+            homes = sorted({t.origin_household for t in unheard})
+            times = "once" if len(unheard) == 1 else f"{len(unheard)} times"
             places = "one home" if len(homes) == 1 else f"{len(homes)} homes"
             effects.append(
                 ReportLine(
@@ -229,6 +235,7 @@ class Thanks(KindHandler):
                         text=f"Your tip about {tip.payload['topic']} was thanked {times} in {places} "
                         "since we last talked.",
                         refs=[tip_id],
+                        key=f"thanks_return:{tip_id}",
                     ),
                 )
             )

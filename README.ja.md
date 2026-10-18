@@ -41,13 +41,15 @@ uv run python scripts/measure_latency.py --token demo-tokyo
 
 町の時間が1つ進むごとに（tick）、町に出ている分身どうしが組になって話し、それぞれの家が共有したものを受け渡します。会話は Amazon Bedrock 上の [Strands Agents](https://strandsagents.com) で生成します（既定のモデルは Claude Haiku 5.5）。オフラインでは決まった文面を使います。
 
+背景の家の住人も模擬の人で、町の時間の合間にも暮らしています。ときどき、分身が持ち帰った知恵や、いつも感謝していることについて Alexa にお礼を言います。頻度は町の時間1時間あたりで決めていて（町全体で1日に40回ほど）、何週間たっても感謝の戻りや流行が途切れません。デモの家と連携した家は、人がお礼を言ったときだけ感謝を記録します。まだ聞いていない報告では、戻ってきた感謝を知恵ごとに1回だけ、最後に聞いたとき以降の合計で伝えます。
+
 ```sh
 uv run python -m overhearth.engine --ticks 2              # オフライン（決まった文面）
 uv run python -m overhearth.engine --ticks 1 --bedrock    # Bedrock（手元の AWS の認証情報を使う）
 
 # 起動中のサーバーで町の時間を進める（開発用）:
 OVERHEARTH_DEV_ENDPOINTS=1 OVERHEARTH_DIALOGUE=bedrock uv run python -m overhearth
-curl -X POST http://127.0.0.1:8000/dev/tick
+curl -X POST -H "Authorization: Bearer demo-tokyo" http://127.0.0.1:8000/dev/tick
 ```
 
 | 環境変数 | 既定値 | 意味 |

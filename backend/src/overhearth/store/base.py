@@ -67,8 +67,19 @@ class Store(Protocol):
 
     def put_report(self, report: Report) -> None: ...
 
-    def append_report(self, household_id: str, items: list[ReportItem], *, met: list[str], at: datetime) -> None:
-        """Add lines to the household's pending report."""
+    def append_report(
+        self,
+        household_id: str,
+        items: list[ReportItem],
+        *,
+        met: list[str],
+        at: datetime,
+        since: datetime | None = None,
+    ) -> None:
+        """Add lines to the household's pending report.
+
+        `since` is where a new report starts: the start of the tick that produced the lines.
+        """
         ...
 
     def mark_report_heard(self, household_id: str, at: datetime) -> None: ...
