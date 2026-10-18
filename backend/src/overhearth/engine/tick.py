@@ -19,7 +19,7 @@ from overhearth.kinds import Carry, Effect, Event, ReportLine, TickContext
 from overhearth.models import Household, ReportItem, TownEvent, Visibility, utcnow
 from overhearth.store import Store
 
-MAX_OFFERS = 3
+MAX_OFFERS = 4
 
 
 @dataclass
@@ -32,14 +32,18 @@ class TickResult:
 
 
 def _offers(household: Household, store: Store) -> tuple[Offer, ...]:
-    """What the household's avatar brings: its own recent items, then what it picked up."""
-    own = [p for p in store.packets(origin=household.id) if p.visibility != Visibility.ORIGIN_ONLY]
-    own.sort(key=lambda p: p.created_at, reverse=True)
-    relayed = [p for pid in reversed(store.carried(household.id)) if (p := store.get_packet(pid))]
+    """What the household's avatar brings into town.
+
+    Ordered by each kind's `offer_priority`, then the home's own items before ones it
+    picked up, then newest first. Items that would read the same are offered once.
+    """
+    own = store.packets(origin=household.id)
+    relayed = [p for pid in store.carried(household.id) if (p := store.get_packet(pid))]
+    candidates = [(p, 0) for p in own] + [(p, 1) for p in relayed]
+    candidates = [(p, hop) for p, hop in candidates if p.visibility == Visibility.TOWN]
+    candidates.sort(key=lambda c: (kinds.get(c[0].kind).offer_priority, c[1], -c[0].created_at.timestamp()))
     offers: dict[str, Offer] = {}
-    for packet in own + relayed:
-        if packet.visibility != Visibility.TOWN:
-            continue
+    for packet, _ in candidates:
         summary = kinds.get(packet.kind).to_town_summary(packet)
         offers.setdefault(summary.lower(), Offer(packet.id, packet.kind, summary))
         if len(offers) == MAX_OFFERS:

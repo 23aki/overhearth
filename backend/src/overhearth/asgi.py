@@ -15,13 +15,19 @@ from overhearth.dev_seed import seeded_store
 from overhearth.engine import dialogue_from_env, run_tick
 from overhearth.mcp_server import build_server
 from overhearth.store import Store
+from overhearth.town_seed import seeded_town
 
 
 def _store_from_env() -> Store:
     backend = os.environ.get("OVERHEARTH_STORE", "memory")
-    if backend == "memory":
+    if backend != "memory":
+        raise ValueError(f"unsupported OVERHEARTH_STORE={backend!r}")
+    seed = os.environ.get("OVERHEARTH_SEED", "town")
+    if seed == "town":
+        return seeded_town()
+    if seed == "dev":
         return seeded_store()
-    raise ValueError(f"unsupported OVERHEARTH_STORE={backend!r}")
+    raise ValueError(f"unsupported OVERHEARTH_SEED={seed!r}")
 
 
 def create_app(store: Store | None = None) -> ASGIApp:
