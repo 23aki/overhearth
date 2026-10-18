@@ -49,6 +49,15 @@ def test_town_report_returns_precomputed_report(server_url):
     assert "egg and spinach" in report["speech"]
 
 
+def test_town_report_only_tells_news_once(server_url):
+    client = _client(server_url)
+    first = _structured(client.call_tool("town_report")[0])
+    assert first["items"]
+    again = _structured(client.call_tool("town_report")[0])
+    assert again["items"] == []
+    assert "quiet" in again["speech"]
+
+
 def test_ask_town_ranks_by_thanks(server_url):
     result, _ = _client(server_url).call_tool("ask_town", {"question": "quick dinner with eggs and spinach"})
     answers = _structured(result)["answers"]
@@ -88,3 +97,13 @@ def test_missing_token_is_rejected(server_url):
 def test_rpc_errors_surface_as_exceptions(server_url):
     with pytest.raises(RpcError):
         _client(server_url).request("no/such/method")
+
+
+def test_dev_tick_is_off_by_default(server_url):
+    import urllib.error
+    import urllib.request
+
+    request = urllib.request.Request(server_url.replace("/mcp", "/dev/tick"), method="POST")
+    with pytest.raises(urllib.error.HTTPError) as error:
+        urllib.request.urlopen(request, timeout=5)
+    assert error.value.code == 404

@@ -109,3 +109,5 @@ class TownEvent(BaseModel):
     """Household ids involved."""
     summary: str
     refs: list[str] = Field(default_factory=list)
+    detail: dict[str, Any] = Field(default_factory=dict)
+    """Extra data for the town view, such as the dialogue lines of an encounter."""

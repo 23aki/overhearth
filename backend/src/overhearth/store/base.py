@@ -7,9 +7,10 @@ tools are limited to appending packets.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Protocol
 
-from overhearth.models import Household, KnowledgeEntry, Packet, Report, TownEvent
+from overhearth.models import Household, KnowledgeEntry, Packet, Report, ReportItem, TownEvent
 
 
 class Store(Protocol):
@@ -27,9 +28,27 @@ class Store(Protocol):
 
     def search_knowledge(self, query: str, *, limit: int = 3) -> list[KnowledgeEntry]: ...
 
-    def latest_report(self, household_id: str) -> Report | None: ...
+    def latest_report(self, household_id: str) -> Report | None:
+        """The report of everything not yet heard by the household."""
+        ...
 
     def put_report(self, report: Report) -> None: ...
+
+    def append_report(self, household_id: str, items: list[ReportItem], *, met: list[str], at: datetime) -> None:
+        """Add lines to the household's pending report."""
+        ...
+
+    def mark_report_heard(self, household_id: str, at: datetime) -> None: ...
+
+    def carried(self, household_id: str) -> list[str]:
+        """Packet ids the household's avatar has picked up in town, oldest first."""
+        ...
+
+    def add_carried(self, household_id: str, packet_id: str) -> None: ...
+
+    def next_tick(self, at: datetime) -> tuple[int, datetime]:
+        """Advance the town clock. Returns the new tick number and when the previous tick ran."""
+        ...
 
     def town_events(self, *, limit: int = 50) -> list[TownEvent]: ...
 
