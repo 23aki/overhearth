@@ -43,6 +43,9 @@ export interface OverhearthProps extends StackProps {
   llm: "bedrock" | "anthropic";
   anthropicApiKey: string;
   anthropicModel: string;
+  /** OpenAI key for the diary pictures (empty: diaries are text only), and the image model. */
+  openaiApiKey: string;
+  imageModel: string;
 }
 
 const PREVIEW_USER = "overhearth";
@@ -96,7 +99,21 @@ function handler(event) {
 }`),
         })
       : undefined;
+    // Diary pictures: written by the tick, served by CloudFront under /diary/ (outside the preview gate,
+    // so Alexa+ screens can load them; names are random ids).
+    const diaryPictures = new s3.Bucket(this, "DiaryPictures", {
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      enforceSSL: true,
+      removalPolicy: RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+    });
     const distribution = new cloudfront.Distribution(this, "WebDistribution", {
+      additionalBehaviors: {
+        "/diary/*": {
+          origin: origins.S3BucketOrigin.withOriginAccessControl(diaryPictures),
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        },
+      },
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(site),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
@@ -123,6 +140,10 @@ function handler(event) {
       OVERHEARTH_DIALOGUE: props.llm,
       OVERHEARTH_ASSISTANT: props.llm,
       OVERHEARTH_BEDROCK_MODEL: props.bedrockModel,
+      OVERHEARTH_DIARY_BUCKET: diaryPictures.bucketName,
+      OVERHEARTH_DIARY_BASE_URL: webOrigin,
+      ...(props.openaiApiKey ? { OPENAI_API_KEY: props.openaiApiKey } : {}),
+      ...(props.imageModel ? { OVERHEARTH_IMAGE_MODEL: props.imageModel } : {}),
       ...(props.llm === "anthropic"
         ? {
             ANTHROPIC_API_KEY: props.anthropicApiKey,
@@ -197,6 +218,10 @@ function handler(event) {
     });
     table.grantReadWriteData(tick);
     tick.addToRolePolicy(bedrock);
+    diaryPictures.grantPut(tick);
+    // "Draw diary" on the demo page asks the tick function to draw now, without waiting for it.
+    api.addEnvironment("OVERHEARTH_TICK_FUNCTION", tick.functionName);
+    tick.grantInvoke(api);
     if (props.mailFrom) tick.addToRolePolicy(sendEmail);
     new events.Rule(this, "EveryHalfHour", {
       schedule: events.Schedule.rate(Duration.minutes(30)),

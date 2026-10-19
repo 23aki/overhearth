@@ -11,6 +11,7 @@ model's JSON in `data`, so DynamoDB never has to understand the models:
 | HEARD               | household id               | the report the household heard last     |
 | DELIVERY            | household id               | private delivery settings (email)       |
 | ACTIVITY            | household id               | when the home last talked with Alexa    |
+| DIARY#<scope>       | local date                 | a picture diary (a home's, or the town) |
 | TRANSLATION#<key>   | language                   | stored translation of some fields       |
 | CARRIED             | household id               | packet ids the avatar carries           |
 | EVENT               | tick#seq#event id          | a town event                            |
@@ -37,6 +38,7 @@ from boto3.dynamodb.conditions import Attr, Key
 from overhearth.models import (
     AuthGrant,
     DeliverySettings,
+    Diary,
     Household,
     IssuedToken,
     KnowledgeEntry,
@@ -248,6 +250,17 @@ class DynamoStore:
                 record.update(kind=item["kind"], kind_at=datetime.fromisoformat(item["kind_at"]))
             records[item["sk"]] = record
         return describe_activity(records, now)
+
+    def put_diary(self, diary: Diary) -> None:
+        self._put(f"DIARY#{diary.scope}", diary.date, diary.model_dump_json())
+
+    def get_diary(self, scope: str, date: str) -> Diary | None:
+        data = self._get(f"DIARY#{scope}", date)
+        return Diary.model_validate_json(data) if data else None
+
+    def latest_diary(self, scope: str) -> Diary | None:
+        items = self._query(f"DIARY#{scope}", newest_first=True, limit=1)
+        return Diary.model_validate_json(items[0]["data"]) if items else None
 
     def get_delivery(self, household_id: str) -> DeliverySettings | None:
         data = self._get("DELIVERY", household_id)

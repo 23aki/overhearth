@@ -11,6 +11,7 @@ dependencies = [
     "mcp>=2.1,<2.2",
     "pydantic>=2.14.1",
     "strands-agents[anthropic]>=1.60",
+    "tzdata>=2024.1",
     "uvicorn>=0.54.0",
 ]
 

@@ -27,12 +27,13 @@ from overhearth.translate import Localizer
 log = logging.getLogger(__name__)
 
 TOWN_UI_URI = "ui://overhearth/town.html"
+DIARY_UI_URI = "ui://overhearth/diary.html"
 
 READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_world_hint=False)
 REPORT_ONCE = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False)
 """town_report marks what it read out as heard, so the next report only has news."""
 
-REPORT_PRIORITY = {"thanks_return": 0, "answer": 1, "tip": 2, "question": 3, "trend": 4}
+REPORT_PRIORITY = {"thanks_return": 0, "diary": 1, "answer": 2, "tip": 3, "question": 4, "trend": 5}
 MAX_SPOKEN_ITEMS = 4
 """Keeps the spoken report well under the 30 second limit for an Alexa+ voice response."""
 APPEND_ONLY = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False)
@@ -72,6 +73,18 @@ class ReportResult(BaseModel):
     speech: str
     met: list[str] = Field(default_factory=list)
     items: list[ReportItem] = Field(default_factory=list)
+
+
+class DiaryResult(BaseModel):
+    speech: str
+    available: bool
+    scope: str = Field(description="'home' for this home's avatar's diary, 'town' for the town's.")
+    avatar: str | None = None
+    date: str | None = None
+    title: str | None = None
+    text: str | None = None
+    language: str | None = None
+    image_url: str | None = None
 
 
 class TownResult(BaseModel):
@@ -119,6 +132,10 @@ def _town_html() -> str:
     return resources.files("overhearth").joinpath("ui/town.html").read_text(encoding="utf-8")
 
 
+def _diary_html() -> str:
+    return resources.files("overhearth").joinpath("ui/diary.html").read_text(encoding="utf-8")
+
+
 def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
     mailer = mailer or mailer_from_env()
     email_limiter = RateLimiter(limit=5)
@@ -156,6 +173,55 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
         return TownState.model_validate({"viewer": household.id, **store.town_state()})
 
     apps.add_html_resource(TOWN_UI_URI, _town_html(), name="town", title="Overhearth town")
+
+    def _diary(household: Household, scope: str) -> DiaryResult:
+        key = household.id if scope == "home" else "town"
+        diary = store.latest_diary(key)
+        if diary is None:
+            return DiaryResult(
+                speech=f"{household.avatar_name} hasn't drawn a diary yet. It draws one every evening.",
+                available=False,
+                scope=scope,
+                avatar=household.avatar_name,
+            )
+        who = f"{household.avatar_name}'s" if scope == "home" else "The town's"
+        return DiaryResult(
+            speech=f"{who} picture diary for {diary.date}: {diary.title}. {diary.text}",
+            available=True,
+            scope=scope,
+            avatar=household.avatar_name,
+            date=diary.date,
+            title=diary.title,
+            text=diary.text,
+            language=diary.language,
+            image_url=diary.image_url,
+        )
+
+    @apps.tool(
+        resource_uri=DIARY_UI_URI,
+        name="town_diary",
+        title="Today's picture diary",
+        description=(
+            "Show the picture diary this home's Alexa avatar drew of its day in town (who it met, what "
+            "it learned, thanks that came back), on the screen. Call when the person wants to see the "
+            "diary, or says yes after the town report mentions that a diary is ready."
+        ),
+        annotations=READ_ONLY,
+    )
+    def town_diary(ctx: Context) -> DiaryResult:
+        return _diary(_household(ctx, store, "diary"), "home")
+
+    @apps.tool(
+        resource_uri=DIARY_UI_URI,
+        visibility=["app"],
+        name="get_diary",
+        description="This home's latest picture diary ('home') or the town's ('town'), for the diary view.",
+        annotations=READ_ONLY,
+    )
+    def get_diary(ctx: Context, scope: Literal["home", "town"] = "home") -> DiaryResult:
+        return _diary(_household(ctx, store), scope)
+
+    apps.add_html_resource(DIARY_UI_URI, _diary_html(), name="diary", title="Overhearth picture diary")
 
     mcp = MCPServer(
         name="overhearth",

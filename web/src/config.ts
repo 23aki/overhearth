@@ -12,6 +12,7 @@ export const BACKEND_URL =
 export const MCP_URL = `${BACKEND_URL}/mcp`;
 export const ASSISTANT_URL = `${BACKEND_URL}/assistant/turn`;
 export const DEV_TICK_URL = `${BACKEND_URL}/dev/tick`;
+export const DEV_DIARY_URL = `${BACKEND_URL}/dev/diary`;
 /** Headers every backend call needs; the access key is only set while the demo is gated. */
 export function apiHeaders(): Record<string, string> {
   const key = runtime.accessKey ?? (import.meta.env.VITE_ACCESS_KEY as string | undefined);

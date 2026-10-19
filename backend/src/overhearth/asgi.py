@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import hmac
+import json
 import logging
 import os
+import threading
 from dataclasses import asdict
 from urllib.parse import urlsplit
 
@@ -13,12 +15,15 @@ from mcp.server.transport_security import TransportSecuritySettings
 from pydantic import ValidationError
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
-from starlette.responses import JSONResponse, PlainTextResponse
+from starlette.responses import JSONResponse, PlainTextResponse, Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from overhearth.assistant import RateLimiter, TurnRequest, assistant_from_env, tool_defs, trim
 from overhearth.delivery import Mailer, mailer_from_env
+from overhearth.diary import TOWN, Diarist
 from overhearth.engine import dialogue_from_env, run_tick
+from overhearth.images import LocalImageStore, image_store_from_env, painter_from_env
+from overhearth.llm import writer_from_env
 from overhearth.mcp_server import build_server
 from overhearth.models import utcnow
 from overhearth.oauth import BearerGate, install_oauth_routes
@@ -29,6 +34,7 @@ from overhearth.translate import translator_from_env
 log = logging.getLogger(__name__)
 
 DEV_TICK_INTERVAL_SECONDS = float(os.environ.get("OVERHEARTH_DEV_TICK_INTERVAL", "30"))
+DEV_DIARY_INTERVAL_SECONDS = float(os.environ.get("OVERHEARTH_DEV_DIARY_INTERVAL", "60"))
 
 
 LOCAL_HOSTS = ["127.0.0.1:*", "localhost:*", "[::1]:*"]
@@ -128,6 +134,26 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
         active = await anyio.to_thread.run_sync(lambda: store.activity(utcnow()))
         return JSONResponse({"active": active}, headers={"Cache-Control": "no-store"})
 
+    images = image_store_from_env()
+    on_lambda = bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
+
+    @server.custom_route("/town/diary", methods=["GET"])
+    async def town_diary(_: Request) -> JSONResponse:
+        """The town's latest picture diary, for the watch page."""
+        diary = await anyio.to_thread.run_sync(lambda: store.latest_diary(TOWN))
+        return JSONResponse({"diary": diary.model_dump(mode="json") if diary else None})
+
+    if isinstance(images, LocalImageStore):
+
+        @server.custom_route("/diary/{name}", methods=["GET"])
+        async def diary_picture(request: Request) -> Response:
+            """Diary pictures when running locally (deployed, CloudFront serves them from S3)."""
+            name = request.path_params["name"]
+            data = images.read(name) if name.endswith(".png") and "/" not in name else None
+            if data is None:
+                return PlainTextResponse("Not found", status_code=404)
+            return Response(data, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
     assistant = assistant_from_env()
     limiter = RateLimiter()
 
@@ -160,6 +186,36 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
         dialogue = dialogue_from_env()
         translator = translator_from_env()
         tick_limiter = RateLimiter(limit=1, window_seconds=DEV_TICK_INTERVAL_SECONDS)
+        diary_limiter = RateLimiter(limit=1, window_seconds=DEV_DIARY_INTERVAL_SECONDS)
+        # Locally the tick writes due diaries itself; on Lambda the scheduled tick does (29 s limit here).
+        diarist = None if on_lambda else Diarist(store, writer_from_env(), painter_from_env(), images)
+
+        @server.custom_route("/dev/diary", methods=["POST"])
+        async def dev_diary(request: Request) -> JSONResponse:
+            """Draw today's picture diary now, for this home and the town. Demo only.
+
+            Pictures take tens of seconds, so this returns at once and the diary appears later.
+            """
+            scheme, _, token = request.headers.get("authorization", "").partition(" ")
+            home = store.household_for_token(token) if scheme.lower() == "bearer" else None
+            if home is None:
+                return JSONResponse({"error": "Link a home first."}, status_code=401)
+            if not diary_limiter.allow("town"):
+                return JSONResponse(
+                    {"error": "A diary is already being drawn. Try again in a minute."}, status_code=429
+                )
+            scopes = [home.id, TOWN]
+            function = os.environ.get("OVERHEARTH_TICK_FUNCTION")
+            if on_lambda and function:
+                import boto3
+
+                payload = json.dumps({"diary": scopes}).encode()
+                boto3.client("lambda").invoke(FunctionName=function, InvocationType="Event", Payload=payload)
+            else:
+                local = diarist or Diarist(store, writer_from_env(), painter_from_env(), images)
+                threading.Thread(target=lambda: local.write_due(utcnow(), scopes=scopes), daemon=True).start()
+            return JSONResponse({"drawing": scopes}, status_code=202)
+
         tick_lock = anyio.Lock()
 
         @server.custom_route("/dev/tick", methods=["POST"])
@@ -176,7 +232,7 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
                 return JSONResponse({"error": "The town is still busy. Try again in a moment."}, status_code=429)
             async with tick_lock:
                 result = await anyio.to_thread.run_sync(
-                    lambda: run_tick(store, dialogue, mailer=mailer, translator=translator)
+                    lambda: run_tick(store, dialogue, mailer=mailer, translator=translator, diarist=diarist)
                 )
             return JSONResponse(asdict(result))
 

@@ -49,6 +49,8 @@ Tool rules:
   out of date.
 - Practical everyday questions (cooking, chores, routines, kids, sleep...): call ask_town.
 - "Show me the town" or questions about where thanks went: call open_town.
+- When a town report says a picture diary is ready, offer it; if the person wants to see it, or
+  asks for the diary, call town_diary (it shows on the screen; describe it in a sentence or two).
 - To share know-how or ask the town something, call share_with_town with confirmed=false,
   read the preview back, and only after the person clearly agrees call it again with the same
   values and confirmed=true.
@@ -349,6 +351,8 @@ class ScriptedAssistant:
         if re.search(r"\bthank|ありがとう|助かった", text):
             tip_id = _last_town_item_id(messages)
             return call("record_thanks", what_helped=last.text or "your help", **({"tip_id": tip_id} if tip_id else {}))
+        if re.search(r"\bdiary\b|絵日記|日記", text):
+            return call("town_diary")
         if re.search(r"\b(show|open)\b.*\b(town|map)\b|町を見せて|町を見たい", text):
             return call("open_town")
         if (

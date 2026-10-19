@@ -43,6 +43,7 @@ _TEMPLATES: dict[str, dict[str, str]] = {
         "one_home": "one home",
         "homes": "{n} homes",
         "and": " and ",
+        "diary_ready": "I drew today's picture diary. Want to see it?",
     },
     "ja": {
         "tip": "{carrier}が、{origin}の「{topic}」のコツを教えてくれました：{text}",
@@ -55,6 +56,7 @@ _TEMPLATES: dict[str, dict[str, str]] = {
         "one_home": "1軒の家",
         "homes": "{n}軒の家",
         "and": "や",
+        "diary_ready": "今日の絵日記を描いたよ。見る？",
     },
     "es": {
         "tip": "{carrier} trajo un consejo sobre {topic} de {origin}: {text}",
@@ -67,6 +69,7 @@ _TEMPLATES: dict[str, dict[str, str]] = {
         "one_home": "un hogar",
         "homes": "{n} hogares",
         "and": " y ",
+        "diary_ready": "Dibujé el diario ilustrado de hoy. ¿Quieres verlo?",
     },
     "fr": {
         "tip": "{carrier} a rapporté une astuce sur {topic} de {origin} : {text}",
@@ -79,6 +82,7 @@ _TEMPLATES: dict[str, dict[str, str]] = {
         "one_home": "un foyer",
         "homes": "{n} foyers",
         "and": " et ",
+        "diary_ready": "J'ai dessiné le journal illustré d'aujourd'hui. Tu veux le voir ?",
     },
     "ko": {
         "tip": "{carrier}가 {origin}의 '{topic}' 팁을 알려 줬어요: {text}",
@@ -91,6 +95,7 @@ _TEMPLATES: dict[str, dict[str, str]] = {
         "one_home": "한 집",
         "homes": "{n}집",
         "and": ", ",
+        "diary_ready": "오늘의 그림일기를 그렸어요. 볼래요?",
     },
     "pt": {
         "tip": "{carrier} trouxe uma dica sobre {topic} de {origin}: {text}",
@@ -103,6 +108,7 @@ _TEMPLATES: dict[str, dict[str, str]] = {
         "one_home": "uma casa",
         "homes": "{n} casas",
         "and": " e ",
+        "diary_ready": "Desenhei o diário ilustrado de hoje. Quer ver?",
     },
     "de": {
         "tip": "{carrier} hat einen Tipp zu {topic} von {origin} mitgebracht: {text}",
@@ -115,6 +121,7 @@ _TEMPLATES: dict[str, dict[str, str]] = {
         "one_home": "einem Zuhause",
         "homes": "{n} Haushalten",
         "and": " und ",
+        "diary_ready": "Ich habe das heutige Bildtagebuch gemalt. Willst du es sehen?",
     },
     "zh": {
         "tip": "{carrier}带回了{origin}关于「{topic}」的小窍门：{text}",
@@ -127,6 +134,7 @@ _TEMPLATES: dict[str, dict[str, str]] = {
         "one_home": "1个家庭",
         "homes": "{n}个家庭",
         "and": "和",
+        "diary_ready": "我画好了今天的图画日记。要看看吗？",
     },
 }
 

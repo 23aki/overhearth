@@ -17,4 +17,6 @@ new OverhearthStack(app, "Overhearth", {
   llm: String(context("llm") ?? "bedrock") === "anthropic" ? "anthropic" : "bedrock",
   anthropicApiKey: String(context("anthropicApiKey") ?? ""),
   anthropicModel: String(context("anthropicModel") ?? ""),
+  openaiApiKey: String(context("openaiApiKey") ?? ""),
+  imageModel: String(context("imageModel") ?? ""),
 });

@@ -1,7 +1,7 @@
 import { mountApp } from "./apphost";
 import { type Message, type ToolEvent, runTurn } from "./assistant";
 import { renderToolEvent, townPlaceholder } from "./cards";
-import { DEMO_HOUSEHOLDS, DEV_TICK_URL, SHOW_DEV_TICK, apiHeaders } from "./config";
+import { DEMO_HOUSEHOLDS, DEV_DIARY_URL, DEV_TICK_URL, SHOW_DEV_TICK, apiHeaders } from "./config";
 import { type LinkedHome, finishLinking, freshLinkedHome, linkedHome, startLinking } from "./link";
 import { McpConnection } from "./mcp";
 import { canListen, listenOnce, speak, stopSpeaking } from "./voice";
@@ -27,6 +27,7 @@ const composer = $<HTMLFormElement>("composer");
 const input = $<HTMLInputElement>("say");
 const mic = $<HTMLButtonElement>("mic");
 const tick = $<HTMLButtonElement>("tick");
+const draw = $<HTMLButtonElement>("draw");
 
 const homes = new Map<string, Home>(
   DEMO_HOUSEHOLDS.map((h) => [h.token, { token: h.token, lang: h.lang, mcp: null, history: [], lines: [] }]),
@@ -189,6 +190,28 @@ if (canListen()) {
 } else {
   mic.disabled = true;
   mic.title = "Voice input is not available in this browser";
+}
+
+if (SHOW_DEV_TICK) {
+  // Demo: the diary is normally drawn in the evening; this draws today's now (it takes a minute).
+  draw.hidden = false;
+  draw.addEventListener("click", async () => {
+    draw.disabled = true;
+    try {
+      const response = await fetch(DEV_DIARY_URL, {
+        method: "POST",
+        headers: { ...apiHeaders(), Authorization: `Bearer ${current.token}` },
+      });
+      draw.textContent = response.ok ? "Drawing… ask for the diary in a minute" : "Could not start drawing";
+    } catch {
+      draw.textContent = "Could not start drawing";
+    } finally {
+      setTimeout(() => {
+        draw.disabled = false;
+        draw.textContent = "Draw diary";
+      }, 8000);
+    }
+  });
 }
 
 if (SHOW_DEV_TICK) {

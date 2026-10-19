@@ -13,6 +13,7 @@ from typing import Any, Protocol
 from overhearth.models import (
     AuthGrant,
     DeliverySettings,
+    Diary,
     Household,
     IssuedToken,
     KnowledgeEntry,
@@ -106,6 +107,12 @@ class Store(Protocol):
     def activity(self, now: datetime) -> dict[str, dict[str, Any]]:
         """Homes talking with their Alexa right now: {household id: {kind, ago}}."""
         ...
+
+    def put_diary(self, diary: Diary) -> None: ...
+
+    def get_diary(self, scope: str, date: str) -> Diary | None: ...
+
+    def latest_diary(self, scope: str) -> Diary | None: ...
 
     def get_delivery(self, household_id: str) -> DeliverySettings | None: ...
 

@@ -118,6 +118,15 @@ npm run dev
 - **観覧ページ**（`/watch.html`）：Alexa を通さずに、町全体をリアルタイムで眺められます。新しい町の時間が来ると、すぐに再生します。家を選ぶと、その分身を追いかけます（`/watch.html?follow=hh_osaka` のように開くこともできます）。家のトークンなしで読める `GET /town` を使います。
 - **Alexa の中**：下の MCP App も同じ描画を使い、自分の分身を追いかけます。
 
+### 絵日記
+
+毎日夕方（その家の現地時刻の18時以降）、デモの家と連携した家の分身が、その日の町での出来事を家の言語で絵日記にします。町全体の日記も1日1枚書きます。文章は分身の会話と同じモデルで書き（その日に町で起きたことだけを使います）、絵は画像生成のモデルで描きます（既定は `gpt-image-2.5`。`OPENAI_API_KEY` が必要）。
+
+- 次の報告で Alexa が「今日の絵日記を描いたよ。見る？」と切り出します。`town_diary` ツールで、MCP App（`ui://overhearth/diary.html`）として画面に出します。罫線のノートに日付・絵・文章を並べ、町の日記のタブもあります。
+- 観覧ページでは「Town diary」で町の日記を見られます。
+- デモ用に、Echo Show 風の画面の「Draw diary」で今日の日記をすぐに描けます（`POST /dev/diary`。絵に時間がかかるので、AWS では町の時間用の Lambda が非同期で描きます）。
+- 絵は、ローカルではバックエンドが配信し、AWS では S3 に置いて CloudFront の `/diary/` から配信します。画像のキーがなければ、文章だけの日記になります。
+
 ### 町の画面（MCP App）
 
 「show me the town」と話しかけます。`open_town` は `ui://overhearth/town.html` のリソースを指しています。画面は、Echo Show 上の Alexa+ と同じように MCP Apps のホストとして動きます。リソースを読み込み、sandbox を付けた iframe に表示し、`@modelcontextprotocol/ext-apps` で MCP サーバーとつなぎます。
@@ -209,6 +218,7 @@ cd ../backend && AWS_PROFILE=<deploy-profile> uv run python -m overhearth.store.
 | `bedrockModel` | `global.anthropic.claude-haiku-5-5` | Alexa の層と分身の会話に使うモデル、または推論プロファイル |
 | `mailFrom` | 空（送信しない） | SES で検証済みの送信元。設定すると、連携した家にメールを送る |
 | `llm` | `bedrock` | 試行錯誤の間だけ `anthropic` にすると、Bedrock の代わりに Claude API を使う（`anthropicApiKey` を渡す。例えば `backend/.env` から読む。キーは Lambda の環境変数に入る）。`anthropicModel` も指定できる |
+| `openaiApiKey` | 空（文章だけの日記） | 絵日記の絵に使う OpenAI のキー（Lambda の環境変数に入る）。`imageModel` も指定できる |
 | `previewPassword` | 空（公開） | 開発中だけ、Web クライアントに Basic 認証をかける（ユーザー名は `overhearth`） |
 | `accessKey` | 空（公開） | 開発中だけ、API（`/mcp`、`/assistant/turn`、`/token`、`/dev/tick`）に、このキーを `X-Overhearth-Access` ヘッダーで求める。Web クライアントは、Basic 認証の内側にある `config.js` からキーを受け取る |
 

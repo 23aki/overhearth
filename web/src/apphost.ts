@@ -25,7 +25,7 @@ export async function mountApp(
   if (!html) throw new Error(`The view ${resourceUri} is not available.`);
 
   const iframe = document.createElement("iframe");
-  iframe.title = "Overhearth town";
+  iframe.title = "Overhearth";
   iframe.setAttribute("sandbox", "allow-scripts");
   container.replaceChildren(iframe);
 

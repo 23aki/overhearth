@@ -154,3 +154,17 @@ class DeliverySettings(BaseModel):
 
 
 AuthGrant.model_rebuild()
+
+
+class Diary(BaseModel):
+    """A picture diary of one day: a home's avatar's day (scope = household id), or the town's."""
+
+    id: str = Field(default_factory=lambda: new_id("diary"))
+    scope: str
+    date: str
+    """The local date the diary is about (YYYY-MM-DD)."""
+    language: str = "en"
+    title: str
+    text: str
+    image_url: str | None = None
+    created_at: datetime = Field(default_factory=utcnow)
