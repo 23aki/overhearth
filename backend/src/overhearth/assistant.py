@@ -21,6 +21,8 @@ from typing import Any, Literal, Protocol
 
 from pydantic import BaseModel, Field
 
+from overhearth.i18n import language_name, normalize
+
 log = logging.getLogger(__name__)
 
 DEFAULT_MODEL_ID = "global.anthropic.claude-haiku-5-5"
@@ -58,6 +60,48 @@ Tool rules:
 """
 
 
+def spoken_language(text: str, home: str) -> str | None:
+    """The language a message is written in, when the script tells (None when it doesn't).
+
+    Hangul is Korean, kana Japanese, Han characters Chinese (Japanese in a Japanese home), and
+    plain ASCII English unless the home speaks a Latin-script language the script can't tell
+    apart (Spanish, French, Portuguese, German): then the model decides.
+    """
+    home = normalize(home)
+    if re.search(r"[\uac00-\ud7af]", text):
+        return "ko"
+    if re.search(r"[\u3040-\u30ff]", text):
+        return "ja"
+    if re.search(r"[\u4e00-\u9fff]", text):
+        return "ja" if home == "ja" else "zh"
+    if re.fullmatch(r"[\x00-\x7f]*", text) and home not in ("es", "fr", "pt", "de"):
+        return "en"
+    return None
+
+
+def system_prompt(language: str, reply_in: str | None = None) -> str:
+    """The Alexa rules, plus the home's language and the language to reply in."""
+    name = language_name(normalize(language))
+    if reply_in:
+        reply = f"The person's latest message is in {language_name(reply_in)}: reply in {language_name(reply_in)}."
+    else:
+        reply = f"Reply in the language of the person's latest message; if you can't tell, use {name}."
+    return (
+        SYSTEM_PROMPT
+        + f"""
+Language: this home's language is {name}, but anyone may be speaking (a guest, a visitor).
+{reply} Tool results may be in any language: say them in the language you reply in.
+When you call ask_town, write the question in English. When you call share_with_town, write the
+topic in English and the text in the person's own words and language.
+"""
+    )
+
+
+def reply_language(messages: list[Message], home: str) -> str | None:
+    latest = next((m.text for m in reversed(messages) if m.role == "user" and m.text), None)
+    return spoken_language(latest, home) if latest else None
+
+
 class ToolCall(BaseModel):
     id: str
     name: str
@@ -91,7 +135,7 @@ class ToolDef(BaseModel):
 
 
 class Assistant(Protocol):
-    def turn(self, messages: list[Message], tools: list[ToolDef]) -> TurnResult: ...
+    def turn(self, messages: list[Message], tools: list[ToolDef], language: str = "en") -> TurnResult: ...
 
 
 MAX_TOOL_CONTENT = 4000
@@ -208,11 +252,11 @@ class ClaudeAssistant:
         self._client = client
         self._model_id = model_id or os.environ.get("OVERHEARTH_ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL_ID)
 
-    def turn(self, messages: list[Message], tools: list[ToolDef]) -> TurnResult:
+    def turn(self, messages: list[Message], tools: list[ToolDef], language: str = "en") -> TurnResult:
         response = self._client.messages.create(
             model=self._model_id,
             max_tokens=MAX_REPLY_TOKENS,
-            system=SYSTEM_PROMPT,
+            system=system_prompt(language, reply_language(messages, language)),
             messages=_to_anthropic(messages),
             tools=[{"name": t.name, "description": t.description, "input_schema": t.input_schema} for t in tools],
             thinking={"type": "disabled"},
@@ -236,10 +280,10 @@ class BedrockAssistant:
         self._client = boto3.client("bedrock-runtime", region_name=region or os.environ.get("AWS_REGION", "us-east-1"))
         self._model_id = model_id or os.environ.get("OVERHEARTH_BEDROCK_MODEL", DEFAULT_MODEL_ID)
 
-    def turn(self, messages: list[Message], tools: list[ToolDef]) -> TurnResult:
+    def turn(self, messages: list[Message], tools: list[ToolDef], language: str = "en") -> TurnResult:
         response = self._client.converse(
             modelId=self._model_id,
-            system=[{"text": SYSTEM_PROMPT}],
+            system=[{"text": system_prompt(language, reply_language(messages, language))}],
             messages=_to_converse(messages),
             toolConfig={
                 "tools": [
@@ -286,7 +330,7 @@ def _last_town_item_id(messages: list[Message]) -> str | None:
 class ScriptedAssistant:
     """Keyword rules, for tests and for running without Bedrock."""
 
-    def turn(self, messages: list[Message], tools: list[ToolDef]) -> TurnResult:
+    def turn(self, messages: list[Message], tools: list[ToolDef], language: str = "en") -> TurnResult:
         last = messages[-1]
         if last.role == "tool":
             content = last.content if isinstance(last.content, dict) else {}
@@ -298,19 +342,20 @@ class ScriptedAssistant:
             return TurnResult(tool_calls=[ToolCall(id=call_id, name=name, arguments=arguments)])
 
         pending = _awaiting_confirmation(messages)
-        if pending and re.search(r"\b(yes|yeah|sure|okay|ok|please do|go ahead)\b", text):
+        if pending and re.search(r"\b(yes|yeah|sure|okay|ok|please do|go ahead)\b|はい|お願い|うん", text):
             return call(pending.name, **{**pending.arguments, "confirmed": True})
-        if re.search(r"\b(email|e-mail|in writing)\b|\bsend (it|that|this) to me\b", text):
+        if re.search(r"\b(email|e-mail|in writing)\b|\bsend (it|that|this) to me\b|メール", text):
             return call("email_report", confirmed=False)
-        if re.search(r"\bthank", text):
+        if re.search(r"\bthank|ありがとう|助かった", text):
             tip_id = _last_town_item_id(messages)
             return call("record_thanks", what_helped=last.text or "your help", **({"tip_id": tip_id} if tip_id else {}))
-        if re.search(r"\b(show|open)\b.*\b(town|map)\b", text):
+        if re.search(r"\b(show|open)\b.*\b(town|map)\b|町を見せて|町を見たい", text):
             return call("open_town")
         if (
             "what happened" in text
             or "anything new" in text
             or (re.search(r"\b(town|news|while i was|today)\b", text) and "?" in text)
+            or re.search(r"何かあった|どうだった|町で", text)
         ):
             return call("town_report")
         if re.search(r"\b(how|what|any|ideas?|tips?)\b", text):

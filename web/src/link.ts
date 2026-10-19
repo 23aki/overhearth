@@ -15,13 +15,14 @@ export interface LinkedHome {
   expiresAt: number;
   avatar: string;
   label: string;
+  lang: string;
 }
 
 interface TokenResponse {
   access_token: string;
   refresh_token: string;
   expires_in: number;
-  household?: { avatar: string; label: string };
+  household?: { avatar: string; label: string; language?: string };
   error?: string;
   error_description?: string;
 }
@@ -88,6 +89,7 @@ function remember(body: TokenResponse, previous?: LinkedHome): LinkedHome {
     expiresAt: Date.now() + body.expires_in * 1000,
     avatar: body.household?.avatar ?? previous?.avatar ?? "Your avatar",
     label: body.household?.label ?? previous?.label ?? "your home",
+    lang: body.household?.language ?? previous?.lang ?? "en",
   };
   save(localStorage, LINKED_KEY, home);
   return home;

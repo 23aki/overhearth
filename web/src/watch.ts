@@ -11,6 +11,7 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const followSelect = $<HTMLSelectElement>("follow");
 const replayButton = $<HTMLButtonElement>("replay");
 const nightButton = $<HTMLButtonElement>("night");
+const subtitlesButton = $<HTMLButtonElement>("subtitles");
 const status = $<HTMLSpanElement>("status");
 const caption = $<HTMLParagraphElement>("caption");
 const card = $<HTMLElement>("card");
@@ -57,7 +58,9 @@ function showCard(home: Home): void {
     : "Nothing from this home has been thanked yet.";
   const kind = document.createElement("p");
   kind.className = "muted";
-  kind.textContent = home.tier === "background" ? "A simulated resident." : home.tier === "demo" ? "A demo home." : "A linked home.";
+  const who = home.tier === "background" ? "A simulated resident" : home.tier === "demo" ? "A demo home" : "A linked home";
+  const speaks = home.language ? new Intl.DisplayNames(["en"], { type: "language" }).of(home.language) : null;
+  kind.textContent = speaks ? `${who}. Speaks ${speaks}.` : `${who}.`;
   const follow = document.createElement("button");
   follow.type = "button";
   follow.textContent = `Follow ${home.avatar}`;
@@ -98,6 +101,12 @@ followSelect.addEventListener("change", () => {
   else card.hidden = true;
 });
 replayButton.addEventListener("click", () => void play());
+let subtitles = true;
+subtitlesButton.addEventListener("click", () => {
+  subtitles = !subtitles;
+  town.setSubtitles(subtitles);
+  subtitlesButton.textContent = subtitles ? "Subtitles: on" : "Subtitles: off";
+});
 town.onSelect(showCard);
 
 const modes: [string, number | null][] = [

@@ -21,6 +21,7 @@ from overhearth.models import Household, Packet, ReportItem, TownEvent
 
 if TYPE_CHECKING:
     from overhearth.store import Store
+    from overhearth.translate import Localizer
 
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 _PHONE = re.compile(r"\+?\d[\d\s().-]{7,}\d")
@@ -68,13 +69,48 @@ class TickContext:
     store: Store
     out: set[str] = field(default_factory=set)
     """Households whose avatars were out in town this tick."""
+    localizer: Localizer | None = None
+    """Translates content for the homes that hear it; None keeps everything original."""
 
     def household(self, household_id: str) -> Household | None:
         return self.store.get_household(household_id)
 
-    def label(self, household_id: str) -> str:
+    def language(self, household_id: str) -> str:
         household = self.store.get_household(household_id)
-        return household.label if household else "a neighbor"
+        return household.language if household else "en"
+
+    def featured(self, household_id: str) -> bool:
+        """A demo or linked home: a person reads its reports, so its lines are worth translating."""
+        household = self.store.get_household(household_id)
+        return bool(household and household.tier in ("demo", "real"))
+
+    def label(self, household_id: str, for_household: str | None = None) -> str:
+        """A home's public label, in the language of the home that hears it."""
+        household = self.store.get_household(household_id)
+        if household is None:
+            return "a neighbor"
+        if for_household is None or self.localizer is None:
+            return household.label
+        return self.localizer.fields(
+            f"label:{household.id}",
+            {"label": household.label},
+            "en",
+            self.language(for_household),
+            allow_model=self.featured(for_household),
+        )["label"]
+
+    def localized(self, packet: Packet, for_household: str, fields: tuple[str, ...]) -> dict[str, str]:
+        """Some payload fields of a packet, in the language of the home that hears them."""
+        original = {f: str(packet.payload[f]) for f in fields if packet.payload.get(f)}
+        if self.localizer is None:
+            return original
+        return self.localizer.fields(
+            f"packet:{packet.id}",
+            original,
+            packet.context.language,
+            self.language(for_household),
+            allow_model=self.featured(for_household),
+        )
 
 
 class KindHandler(ABC):

@@ -23,6 +23,7 @@ from overhearth.mcp_server import build_server
 from overhearth.oauth import BearerGate, install_oauth_routes
 from overhearth.store import Store
 from overhearth.store.env import store_from_env
+from overhearth.translate import translator_from_env
 
 log = logging.getLogger(__name__)
 
@@ -127,7 +128,8 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
     async def assistant_turn(request: Request) -> JSONResponse:
         """One turn of the simulated Alexa+ layer. The browser runs the tool calls over MCP."""
         scheme, _, token = request.headers.get("authorization", "").partition(" ")
-        if scheme.lower() != "bearer" or store.household_for_token(token) is None:
+        home = store.household_for_token(token) if scheme.lower() == "bearer" else None
+        if home is None:
             return JSONResponse({"error": "This Alexa account is not linked to Overhearth yet."}, status_code=401)
         if not limiter.allow(token):
             return JSONResponse({"error": "Too many requests. Try again later."}, status_code=429)
@@ -140,7 +142,7 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
             return JSONResponse({"error": "Malformed turn."}, status_code=400)
         tools = tool_defs(await server.list_tools())
         try:
-            result = await anyio.to_thread.run_sync(lambda: assistant.turn(trim(body.messages), tools))
+            result = await anyio.to_thread.run_sync(lambda: assistant.turn(trim(body.messages), tools, home.language))
         except Exception as error:  # the model call failed; the client shows a polite message
             log.warning("assistant turn failed: %s", type(error).__name__)
             return JSONResponse({"error": "Alexa could not answer just now."}, status_code=502)
@@ -148,6 +150,7 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
 
     if os.environ.get("OVERHEARTH_DEV_ENDPOINTS") == "1":
         dialogue = dialogue_from_env()
+        translator = translator_from_env()
         tick_limiter = RateLimiter(limit=1, window_seconds=DEV_TICK_INTERVAL_SECONDS)
         tick_lock = anyio.Lock()
 
@@ -164,7 +167,9 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
             if tick_lock.locked() or not tick_limiter.allow("town"):
                 return JSONResponse({"error": "The town is still busy. Try again in a moment."}, status_code=429)
             async with tick_lock:
-                result = await anyio.to_thread.run_sync(lambda: run_tick(store, dialogue, mailer=mailer))
+                result = await anyio.to_thread.run_sync(
+                    lambda: run_tick(store, dialogue, mailer=mailer, translator=translator)
+                )
             return JSONResponse(asdict(result))
 
     app = server.streamable_http_app(

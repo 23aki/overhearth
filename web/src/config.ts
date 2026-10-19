@@ -22,14 +22,16 @@ export const SHOW_DEV_TICK = runtime.devTick ?? import.meta.env.VITE_DEV_TICK ==
 
 export interface DemoHousehold {
   token: string;
+  /** The home's language: Alexa speaks and listens in it. */
+  lang: string;
   avatar: string;
   label: string;
 }
 
 /** Simulated demo households. Their tokens stand in for Alexa account linking. */
 export const DEMO_HOUSEHOLDS: DemoHousehold[] = [
-  { token: "demo-tokyo", avatar: "Kiri", label: "a studio apartment in Tokyo" },
-  { token: "demo-osaka", avatar: "Ume", label: "a retired cook's home in Osaka" },
-  { token: "demo-seattle", avatar: "Juniper", label: "a family of four in Seattle" },
-  { token: "demo-austin", avatar: "Pip", label: "a student in Austin" },
+  { token: "demo-seattle", avatar: "Juniper", label: "a family of four in Seattle", lang: "en" },
+  { token: "demo-austin", avatar: "Pip", label: "a student in Austin", lang: "en" },
+  { token: "demo-tokyo", avatar: "Kiri", label: "a studio apartment in Tokyo", lang: "ja" },
+  { token: "demo-osaka", avatar: "Ume", label: "a retired cook's home in Osaka", lang: "ja" },
 ];

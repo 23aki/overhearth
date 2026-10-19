@@ -88,6 +88,7 @@ def build_town_state(
                 "avatar": h.avatar_name,
                 "tier": h.tier,
                 "region": h.region,
+                "language": h.language,
                 "glow": glow.get(h.id, 0),
             }
             for h in households

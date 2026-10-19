@@ -20,6 +20,7 @@ from overhearth.engine.residents import simulate_residents
 from overhearth.kinds import Carry, Effect, Event, ReportLine, TickContext
 from overhearth.models import Household, ReportItem, TownEvent, Visibility, utcnow
 from overhearth.store import Store
+from overhearth.translate import Localizer, Translator
 
 MAX_OFFERS = 4
 
@@ -63,6 +64,7 @@ def _brief(household: Household, store: Store) -> AvatarBrief:
         personality=tuple(household.personality),
         offers=_offers(household, store),
         featured=household.tier in ("demo", "real"),
+        language=household.language,
     )
 
 
@@ -76,6 +78,33 @@ def _apply(effects: list[Effect], store: Store, lines: dict[str, list[ReportItem
             store.add_town_events([effect.event])
 
 
+PRETRANSLATE_PER_TICK = 4
+"""How many of the most-thanked tips to translate ahead each tick, per language of a demo or
+linked home, so ask_town can answer in that language without calling a model."""
+
+
+def pretranslate(store: Store, localizer: Localizer) -> int:
+    languages = {h.language for h in store.households() if h.tier in ("demo", "real")}
+    thanks_count: dict[str, int] = defaultdict(int)
+    for thanks in store.packets(kind="thanks"):
+        if thanks.payload.get("tip_id"):
+            thanks_count[thanks.payload["tip_id"]] += 1
+    tips = sorted(store.packets(kind="tip"), key=lambda p: (-thanks_count[p.id], p.id))
+    done = 0
+    for language in sorted(languages):
+        budget = PRETRANSLATE_PER_TICK
+        for tip in tips:
+            if budget == 0:
+                break
+            fields = {f: str(tip.payload[f]) for f in ("topic", "text", "phrase") if tip.payload.get(f)}
+            if tip.context.language == language or localizer.has(f"packet:{tip.id}", language, tuple(fields)):
+                continue
+            localizer.fields(f"packet:{tip.id}", fields, tip.context.language, language, allow_model=True)
+            budget -= 1
+            done += 1
+    return done
+
+
 def run_tick(
     store: Store,
     dialogue: DialogueGenerator,
@@ -85,6 +114,7 @@ def run_tick(
     out_ratio: float = 0.7,
     max_workers: int = 8,
     mailer: Mailer | None = None,
+    translator: Translator | None = None,
 ) -> TickResult:
     at = at or utcnow()
     rng = rng or random.Random()
@@ -94,7 +124,8 @@ def run_tick(
     out = [h for h in store.households() if h.tier in ("demo", "real") or rng.random() < out_ratio]
     rng.shuffle(out)
     pairs = list(zip(out[0::2], out[1::2], strict=False))
-    ctx = TickContext(tick=tick, at=at, since=since, store=store, out={h.id for h in out})
+    localizer = Localizer(store, translator)
+    ctx = TickContext(tick=tick, at=at, since=since, store=store, out={h.id for h in out}, localizer=localizer)
 
     briefs = [(_brief(a, store), _brief(b, store)) for a, b in pairs]
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
@@ -140,6 +171,9 @@ def run_tick(
         store.append_report(
             household_id, lines.get(household_id, []), met=met.get(household_id, []), at=at, since=since
         )
+
+    if translator is not None:
+        pretranslate(store, localizer)
 
     thanked = {hid for hid, items in lines.items() if any(item.kind == "thanks_return" for item in items)}
     emails = notify_thanks(store, mailer, thanked, at) if mailer is not None else 0

@@ -10,6 +10,7 @@ type RingState = "idle" | "listening" | "thinking" | "speaking";
 
 interface Home {
   token: string;
+  lang: string;
   /** Set for a home linked with OAuth; its access token is refreshed when it expires. */
   linked?: LinkedHome;
   mcp: McpConnection | null;
@@ -27,7 +28,9 @@ const input = $<HTMLInputElement>("say");
 const mic = $<HTMLButtonElement>("mic");
 const tick = $<HTMLButtonElement>("tick");
 
-const homes = new Map<string, Home>(DEMO_HOUSEHOLDS.map((h) => [h.token, { token: h.token, mcp: null, history: [], lines: [] }]));
+const homes = new Map<string, Home>(
+  DEMO_HOUSEHOLDS.map((h) => [h.token, { token: h.token, lang: h.lang, mcp: null, history: [], lines: [] }]),
+);
 let current = homes.get(DEMO_HOUSEHOLDS[0].token)!;
 let busy = false;
 let teardownApp: (() => Promise<void>) | null = null;
@@ -114,7 +117,7 @@ async function handle(text: string): Promise<void> {
     const { speech } = await runTurn(current.token, mcp, current.history, said, onTool);
     addLine("alexa", speech);
     setRing("speaking");
-    await speak(speech);
+    await speak(speech, current.lang);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Something went wrong.";
     addLine("alexa", message);
@@ -133,7 +136,7 @@ function addOption(value: string, text: string, before?: HTMLOptionElement | nul
 }
 
 function addLinkedHome(linked: LinkedHome): void {
-  homes.set(LINKED_KEY, { token: linked.token, linked, mcp: null, history: [], lines: [] });
+  homes.set(LINKED_KEY, { token: linked.token, lang: linked.lang ?? "en", linked, mcp: null, history: [], lines: [] });
   picker.querySelector(`option[value="${LINKED_KEY}"]`)?.remove();
   addOption(LINKED_KEY, `${linked.avatar} · ${linked.label} (your home)`, picker.querySelector(`option[value="${LINK_OPTION}"]`));
 }
@@ -175,7 +178,7 @@ if (canListen()) {
     stopSpeaking();
     setRing("listening");
     try {
-      const heard = await listenOnce();
+      const heard = await listenOnce(current.lang);
       setRing("idle");
       if (heard) await handle(heard);
     } catch {

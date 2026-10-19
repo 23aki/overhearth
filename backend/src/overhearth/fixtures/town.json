@@ -1,5 +1,5 @@
 {
-  "_note": "Every household in this file is simulated. Labels stay at the level of 'a retired teacher in Portland' on purpose: no names, addresses or contact details.",
+  "_note": "Every household in this file is simulated. Labels stay at the level of 'a retired teacher in Portland' on purpose: no names, addresses or contact details. Each home writes its know-how in its own language; topics and search keywords stay in English so the town can find it across languages.",
   "themes": {
     "call_family": "reminders to call family",
     "medicine": "help keeping track of medicine",
@@ -9,322 +9,1281 @@
   },
   "households": [
     {
-      "id": "hh_tokyo", "label": "a studio apartment in Tokyo", "region": "Tokyo", "timezone": "Asia/Tokyo",
-      "tier": "demo", "token": "demo-tokyo", "avatar": "Kiri", "personality": ["curious", "night owl"],
-      "tips": [
-        {"id": "tip_desk_stretch", "keywords": ["desk", "posture", "shoulder", "stretch", "work", "office", "sitting", "break"], "topic": "desk breaks", "phrase": "the one-minute desk stretch", "popularity": 2,
-         "text": "Every hour, stand up for the first minute of a call and roll your shoulders back ten times. It adds up without stealing time."}
+      "id": "hh_tokyo",
+      "label": "a studio apartment in Tokyo",
+      "region": "Tokyo",
+      "timezone": "Asia/Tokyo",
+      "tier": "demo",
+      "token": "demo-tokyo",
+      "avatar": "Kiri",
+      "personality": [
+        "curious",
+        "night owl"
       ],
-      "questions": [{"topic": "late dinners", "text": "What can I cook in ten minutes after getting home late?"}],
-      "gratitude": ["call_family"]
+      "tips": [
+        {
+          "id": "tip_desk_stretch",
+          "keywords": [
+            "desk",
+            "posture",
+            "shoulder",
+            "stretch",
+            "work",
+            "office",
+            "sitting",
+            "break",
+            "minute",
+            "call",
+            "hour"
+          ],
+          "topic": "desk breaks",
+          "phrase": "1分間のデスクストレッチ",
+          "popularity": 2,
+          "text": "1時間ごとに、通話の最初の1分だけ立ち上がって、肩を後ろに10回回す。時間を取られずに積み重なります。"
+        }
+      ],
+      "questions": [
+        {
+          "topic": "late dinners",
+          "text": "遅く帰った日に、10分で作れるものは？"
+        }
+      ],
+      "gratitude": [
+        "call_family"
+      ],
+      "language": "ja"
     },
     {
-      "id": "hh_osaka", "label": "a retired cook's home in Osaka", "region": "Osaka", "timezone": "Asia/Tokyo",
-      "tier": "demo", "token": "demo-osaka", "avatar": "Ume", "personality": ["warm", "loves cooking"],
+      "id": "hh_osaka",
+      "label": "a retired cook's home in Osaka",
+      "region": "Osaka",
+      "timezone": "Asia/Tokyo",
+      "tier": "demo",
+      "token": "demo-osaka",
+      "avatar": "Ume",
+      "personality": [
+        "warm",
+        "loves cooking"
+      ],
       "tips": [
-        {"id": "tip_egg_spinach", "keywords": ["cook", "meal", "dinner", "supper", "quick", "fast", "late", "easy", "egg", "spinach", "recipe", "weeknight"], "topic": "quick dinner", "phrase": "the ten-minute egg and spinach dinner", "popularity": 5,
-         "text": "Ten-minute egg and spinach: wilt the spinach in sesame oil, pour in beaten egg with a splash of soy sauce, fold twice and serve on rice."},
-        {"id": "tip_green_onions", "keywords": ["vegetable", "herb", "grow", "regrow", "kitchen", "save", "garden", "onion"], "topic": "green onions", "phrase": "the regrowing green onions", "popularity": 3,
-         "text": "Stand green onions roots-down in a glass with an inch of water by the window. They keep growing back for weeks."}
+        {
+          "id": "tip_egg_spinach",
+          "keywords": [
+            "cook",
+            "meal",
+            "dinner",
+            "supper",
+            "quick",
+            "fast",
+            "late",
+            "easy",
+            "egg",
+            "spinach",
+            "recipe",
+            "weeknight",
+            "ten",
+            "minute",
+            "rice",
+            "sesame"
+          ],
+          "topic": "quick dinner",
+          "phrase": "10分でできる卵とほうれん草のごはん",
+          "popularity": 5,
+          "text": "10分の卵とほうれん草：ほうれん草をごま油でしんなりさせ、しょうゆを少し入れた溶き卵を流し込み、2回折りたたんでごはんにのせる。"
+        },
+        {
+          "id": "tip_green_onions",
+          "keywords": [
+            "vegetable",
+            "herb",
+            "grow",
+            "regrow",
+            "kitchen",
+            "save",
+            "garden",
+            "onion",
+            "window"
+          ],
+          "topic": "green onions",
+          "phrase": "また生えてくる青ねぎ",
+          "popularity": 3,
+          "text": "青ねぎの根元を、窓辺で水を少し入れたコップに立てておく。何週間も伸びてきます。"
+        }
       ],
       "questions": [],
-      "gratitude": ["medicine"]
+      "gratitude": [
+        "medicine"
+      ],
+      "language": "ja"
     },
     {
-      "id": "hh_seattle", "label": "a family of four in Seattle", "region": "Washington", "timezone": "America/Los_Angeles",
-      "tier": "demo", "token": "demo-seattle", "avatar": "Juniper", "personality": ["busy", "cheerful"],
-      "tips": [
-        {"id": "tip_freeze_rice", "keywords": ["rice", "leftover", "freeze", "reheat", "meal", "prep", "cook", "save", "waste"], "topic": "leftover rice", "phrase": "freezing leftover rice flat", "popularity": 4,
-         "text": "Freeze leftover rice in flat portions while it is still warm; it reheats fluffy in two minutes."},
-        {"id": "tip_launch_pad", "keywords": ["morning", "school", "kids", "routine", "organize", "door", "rush", "forget", "late"], "topic": "school mornings", "phrase": "the launch pad basket by the door", "popularity": 4,
-         "text": "Keep a launch pad basket by the door. Backpacks, permission slips and keys go in the night before, so mornings start calm."}
+      "id": "hh_seattle",
+      "label": "a family of four in Seattle",
+      "region": "Washington",
+      "timezone": "America/Los_Angeles",
+      "tier": "demo",
+      "token": "demo-seattle",
+      "avatar": "Juniper",
+      "personality": [
+        "busy",
+        "cheerful"
       ],
-      "questions": [{"topic": "rainy days", "text": "Indoor ideas to keep two kids busy on a rainy Saturday?"}],
-      "gratitude": ["bedtime", "call_family"]
+      "tips": [
+        {
+          "id": "tip_freeze_rice",
+          "keywords": [
+            "rice",
+            "leftover",
+            "freeze",
+            "reheat",
+            "meal",
+            "prep",
+            "cook",
+            "save",
+            "waste"
+          ],
+          "topic": "leftover rice",
+          "phrase": "freezing leftover rice flat",
+          "popularity": 4,
+          "text": "Freeze leftover rice in flat portions while it is still warm; it reheats fluffy in two minutes."
+        },
+        {
+          "id": "tip_launch_pad",
+          "keywords": [
+            "morning",
+            "school",
+            "kids",
+            "routine",
+            "organize",
+            "door",
+            "rush",
+            "forget",
+            "late"
+          ],
+          "topic": "school mornings",
+          "phrase": "the launch pad basket by the door",
+          "popularity": 4,
+          "text": "Keep a launch pad basket by the door. Backpacks, permission slips and keys go in the night before, so mornings start calm."
+        }
+      ],
+      "questions": [
+        {
+          "topic": "rainy days",
+          "text": "Indoor ideas to keep two kids busy on a rainy Saturday?"
+        }
+      ],
+      "gratitude": [
+        "bedtime",
+        "call_family"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_austin", "label": "a student in Austin", "region": "Texas", "timezone": "America/Chicago",
-      "tier": "demo", "token": "demo-austin", "avatar": "Pip", "personality": ["thrifty", "curious"],
-      "tips": [
-        {"id": "tip_beans_plan", "keywords": ["budget", "cheap", "money", "meal", "dinner", "cook", "beans", "lentils", "student", "save"], "topic": "groceries on a budget", "phrase": "the one-pot beans plan", "popularity": 2,
-         "text": "Plan three dinners around one big pot of beans or lentils. It costs a few dollars and freezes well."}
+      "id": "hh_austin",
+      "label": "a student in Austin",
+      "region": "Texas",
+      "timezone": "America/Chicago",
+      "tier": "demo",
+      "token": "demo-austin",
+      "avatar": "Pip",
+      "personality": [
+        "thrifty",
+        "curious"
       ],
-      "questions": [{"topic": "homesick", "text": "Small things that help when you feel homesick in a new city?"}],
-      "gratitude": ["call_family"]
+      "tips": [
+        {
+          "id": "tip_beans_plan",
+          "keywords": [
+            "budget",
+            "cheap",
+            "money",
+            "meal",
+            "dinner",
+            "cook",
+            "beans",
+            "lentils",
+            "student",
+            "save"
+          ],
+          "topic": "groceries on a budget",
+          "phrase": "the one-pot beans plan",
+          "popularity": 2,
+          "text": "Plan three dinners around one big pot of beans or lentils. It costs a few dollars and freezes well."
+        }
+      ],
+      "questions": [
+        {
+          "topic": "homesick",
+          "text": "Small things that help when you feel homesick in a new city?"
+        }
+      ],
+      "gratitude": [
+        "call_family"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_portland", "label": "a retired teacher living alone in Portland", "region": "Oregon", "timezone": "America/Los_Angeles",
-      "tier": "background", "avatar": "Fern", "personality": ["patient", "bookish"],
-      "tips": [
-        {"id": "tip_hold_list", "keywords": ["book", "read", "library", "hobby", "retire"], "topic": "reading", "phrase": "keeping a library hold list", "popularity": 2,
-         "text": "Keep three books on hold at the library. When one arrives, add another, so there is always something waiting."}
+      "id": "hh_portland",
+      "label": "a retired teacher living alone in Paris",
+      "region": "Île-de-France",
+      "timezone": "Europe/Paris",
+      "tier": "background",
+      "avatar": "Fern",
+      "personality": [
+        "patient",
+        "bookish"
       ],
-      "questions": [], "gratitude": ["medicine", "call_family"]
+      "tips": [
+        {
+          "id": "tip_hold_list",
+          "keywords": [
+            "book",
+            "read",
+            "library",
+            "hobby",
+            "retire",
+            "hold",
+            "waiting"
+          ],
+          "topic": "reading",
+          "phrase": "la liste de réservations à la bibliothèque",
+          "popularity": 2,
+          "text": "Gardez toujours trois livres réservés à la bibliothèque. Quand l'un arrive, réservez-en un autre : il y a toujours un livre qui vous attend."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "medicine",
+        "call_family"
+      ],
+      "language": "fr"
     },
     {
-      "id": "hh_denver", "label": "a couple who both work from home in Denver", "region": "Colorado", "timezone": "America/Denver",
-      "tier": "background", "avatar": "Basil", "personality": ["organized"],
-      "tips": [
-        {"id": "tip_fake_commute", "keywords": ["remote", "home", "work", "routine", "walk", "boundary", "focus", "office"], "topic": "working from home", "phrase": "the fake commute walk", "popularity": 4,
-         "text": "Walk around the block before your first meeting and after your last. It marks the start and end of the workday."}
+      "id": "hh_denver",
+      "label": "a couple who both work from home in Denver",
+      "region": "Colorado",
+      "timezone": "America/Denver",
+      "tier": "background",
+      "avatar": "Basil",
+      "personality": [
+        "organized"
       ],
-      "questions": [], "gratitude": ["water_plants"]
+      "tips": [
+        {
+          "id": "tip_fake_commute",
+          "keywords": [
+            "remote",
+            "home",
+            "work",
+            "routine",
+            "walk",
+            "boundary",
+            "focus",
+            "office"
+          ],
+          "topic": "working from home",
+          "phrase": "the fake commute walk",
+          "popularity": 4,
+          "text": "Walk around the block before your first meeting and after your last. It marks the start and end of the workday."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "water_plants"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_chicago", "label": "a nurse on night shifts in Chicago", "region": "Illinois", "timezone": "America/Chicago",
-      "tier": "background", "avatar": "Wren", "personality": ["kind", "tired"],
-      "tips": [
-        {"id": "tip_after_shift", "keywords": ["sleep", "night", "shift", "tired", "rest", "nurse", "insomnia"], "topic": "sleep after night shifts", "phrase": "the after-shift sunglasses trick", "popularity": 3,
-         "text": "Wear sunglasses on the way home after a night shift and keep the bedroom dark and cool. Falling asleep comes easier."}
+      "id": "hh_chicago",
+      "label": "a nurse on night shifts in Chicago",
+      "region": "Illinois",
+      "timezone": "America/Chicago",
+      "tier": "background",
+      "avatar": "Wren",
+      "personality": [
+        "kind",
+        "tired"
       ],
-      "questions": [], "gratitude": ["bedtime"]
+      "tips": [
+        {
+          "id": "tip_after_shift",
+          "keywords": [
+            "sleep",
+            "night",
+            "shift",
+            "tired",
+            "rest",
+            "nurse",
+            "insomnia"
+          ],
+          "topic": "sleep after night shifts",
+          "phrase": "the after-shift sunglasses trick",
+          "popularity": 3,
+          "text": "Wear sunglasses on the way home after a night shift and keep the bedroom dark and cool. Falling asleep comes easier."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "bedtime"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_boston", "label": "a single dad with a seven-year-old in Boston", "region": "Massachusetts", "timezone": "America/New_York",
-      "tier": "background", "avatar": "Maple", "personality": ["steady"],
-      "tips": [
-        {"id": "tip_build_plate", "keywords": ["kids", "picky", "eat", "food", "meal", "dinner", "toddler", "vegetable"], "topic": "picky eaters", "phrase": "the build-your-own plate", "popularity": 4,
-         "text": "Let kids build their own plate from three small bowls. Choosing makes them far more willing to try things."}
+      "id": "hh_boston",
+      "label": "a single dad with a seven-year-old in Boston",
+      "region": "Massachusetts",
+      "timezone": "America/New_York",
+      "tier": "background",
+      "avatar": "Maple",
+      "personality": [
+        "steady"
       ],
-      "questions": [{"topic": "school lunches", "text": "Packed lunch ideas a seven-year-old will actually eat?"}],
-      "gratitude": ["bedtime", "rainy"]
+      "tips": [
+        {
+          "id": "tip_build_plate",
+          "keywords": [
+            "kids",
+            "picky",
+            "eat",
+            "food",
+            "meal",
+            "dinner",
+            "toddler",
+            "vegetable"
+          ],
+          "topic": "picky eaters",
+          "phrase": "the build-your-own plate",
+          "popularity": 4,
+          "text": "Let kids build their own plate from three small bowls. Choosing makes them far more willing to try things."
+        }
+      ],
+      "questions": [
+        {
+          "topic": "school lunches",
+          "text": "Packed lunch ideas a seven-year-old will actually eat?"
+        }
+      ],
+      "gratitude": [
+        "bedtime",
+        "rainy"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_atlanta", "label": "grandparents raising two grandkids in Atlanta", "region": "Georgia", "timezone": "America/New_York",
-      "tier": "background", "avatar": "Hazel", "personality": ["warm", "busy"],
-      "tips": [
-        {"id": "tip_homework_timer", "keywords": ["kids", "homework", "school", "focus", "timer", "study", "grandkids"], "topic": "homework time", "phrase": "the homework-and-dance timer", "popularity": 3,
-         "text": "Set a timer for twenty minutes of homework, then five minutes of dancing. It keeps everyone going without arguments."}
+      "id": "hh_atlanta",
+      "label": "grandparents raising two grandkids in Mexico City",
+      "region": "Mexico City",
+      "timezone": "America/Mexico_City",
+      "tier": "background",
+      "avatar": "Hazel",
+      "personality": [
+        "warm",
+        "busy"
       ],
-      "questions": [], "gratitude": ["medicine", "call_family"]
+      "tips": [
+        {
+          "id": "tip_homework_timer",
+          "keywords": [
+            "kids",
+            "homework",
+            "school",
+            "focus",
+            "timer",
+            "study",
+            "grandkids",
+            "dance",
+            "minute"
+          ],
+          "topic": "homework time",
+          "phrase": "el temporizador de tarea y baile",
+          "popularity": 3,
+          "text": "Pon un temporizador de veinte minutos de tarea y luego cinco minutos de baile. Así todos siguen sin discutir."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "medicine",
+        "call_family"
+      ],
+      "language": "es"
     },
     {
-      "id": "hh_phoenix", "label": "a retired couple in Phoenix", "region": "Arizona", "timezone": "America/Phoenix",
-      "tier": "background", "avatar": "Sage", "personality": ["easygoing"],
-      "tips": [
-        {"id": "tip_frozen_cloth", "keywords": ["heat", "hot", "summer", "cool", "errand", "weather"], "topic": "hot summers", "phrase": "the frozen washcloth", "popularity": 2,
-         "text": "Run errands before 9 a.m. in summer, and keep a frozen damp washcloth for the back of your neck on the way home."}
+      "id": "hh_phoenix",
+      "label": "a retired couple in Phoenix",
+      "region": "Arizona",
+      "timezone": "America/Phoenix",
+      "tier": "background",
+      "avatar": "Sage",
+      "personality": [
+        "easygoing"
       ],
-      "questions": [], "gratitude": ["water_plants"]
+      "tips": [
+        {
+          "id": "tip_frozen_cloth",
+          "keywords": [
+            "heat",
+            "hot",
+            "summer",
+            "cool",
+            "errand",
+            "weather"
+          ],
+          "topic": "hot summers",
+          "phrase": "the frozen washcloth",
+          "popularity": 2,
+          "text": "Run errands before 9 a.m. in summer, and keep a frozen damp washcloth for the back of your neck on the way home."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "water_plants"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_minneapolis", "label": "new parents with a baby in Minneapolis", "region": "Minnesota", "timezone": "America/Chicago",
-      "tier": "background", "avatar": "Juno", "personality": ["sleepy", "hopeful"],
-      "tips": [
-        {"id": "tip_night_basket", "keywords": ["baby", "newborn", "night", "feed", "sleep", "parent", "tired"], "topic": "night feeds", "phrase": "the night feed basket", "popularity": 3,
-         "text": "Set up a basket by the bed with water, a snack, burp cloths and a dim light, so night feeds don't wake the whole house."}
+      "id": "hh_minneapolis",
+      "label": "new parents with a baby in Minneapolis",
+      "region": "Minnesota",
+      "timezone": "America/Chicago",
+      "tier": "background",
+      "avatar": "Juno",
+      "personality": [
+        "sleepy",
+        "hopeful"
       ],
-      "questions": [{"topic": "baby sleep", "text": "How do you get through the first months of broken sleep?"}],
-      "gratitude": ["bedtime"]
+      "tips": [
+        {
+          "id": "tip_night_basket",
+          "keywords": [
+            "baby",
+            "newborn",
+            "night",
+            "feed",
+            "sleep",
+            "parent",
+            "tired"
+          ],
+          "topic": "night feeds",
+          "phrase": "the night feed basket",
+          "popularity": 3,
+          "text": "Set up a basket by the bed with water, a snack, burp cloths and a dim light, so night feeds don't wake the whole house."
+        }
+      ],
+      "questions": [
+        {
+          "topic": "baby sleep",
+          "text": "How do you get through the first months of broken sleep?"
+        }
+      ],
+      "gratitude": [
+        "bedtime"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_brooklyn", "label": "a remote worker living alone in Brooklyn", "region": "New York", "timezone": "America/New_York",
-      "tier": "background", "avatar": "Clover", "personality": ["chatty"],
-      "tips": [
-        {"id": "tip_friend_call", "keywords": ["friend", "lonely", "alone", "connect", "call", "social", "remote"], "topic": "staying connected", "phrase": "the weekly friend call", "popularity": 4,
-         "text": "Put a standing fifteen-minute call with one friend on the calendar every week. It is easier than finding time each time."}
+      "id": "hh_brooklyn",
+      "label": "a remote worker living alone in Brooklyn",
+      "region": "New York",
+      "timezone": "America/New_York",
+      "tier": "background",
+      "avatar": "Clover",
+      "personality": [
+        "chatty"
       ],
-      "questions": [], "gratitude": ["call_family"]
+      "tips": [
+        {
+          "id": "tip_friend_call",
+          "keywords": [
+            "friend",
+            "lonely",
+            "alone",
+            "connect",
+            "call",
+            "social",
+            "remote"
+          ],
+          "topic": "staying connected",
+          "phrase": "the weekly friend call",
+          "popularity": 4,
+          "text": "Put a standing fifteen-minute call with one friend on the calendar every week. It is easier than finding time each time."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "call_family"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_sanfrancisco", "label": "an engineer sharing a flat in San Francisco", "region": "California", "timezone": "America/Los_Angeles",
-      "tier": "background", "avatar": "Moss", "personality": ["curious"],
-      "tips": [
-        {"id": "tip_fridge_list", "keywords": ["grocery", "shopping", "list", "roommate", "kitchen", "share"], "topic": "shared kitchen", "phrase": "the pen-on-a-string grocery list", "popularity": 2,
-         "text": "Keep a shared grocery list on the fridge with a pen tied to it. Whoever uses the last of something writes it down."}
+      "id": "hh_sanfrancisco",
+      "label": "an engineer sharing a flat in San Francisco",
+      "region": "California",
+      "timezone": "America/Los_Angeles",
+      "tier": "background",
+      "avatar": "Moss",
+      "personality": [
+        "curious"
       ],
-      "questions": [], "gratitude": []
+      "tips": [
+        {
+          "id": "tip_fridge_list",
+          "keywords": [
+            "grocery",
+            "shopping",
+            "list",
+            "roommate",
+            "kitchen",
+            "share"
+          ],
+          "topic": "shared kitchen",
+          "phrase": "the pen-on-a-string grocery list",
+          "popularity": 2,
+          "text": "Keep a shared grocery list on the fridge with a pen tied to it. Whoever uses the last of something writes it down."
+        }
+      ],
+      "questions": [],
+      "gratitude": [],
+      "language": "en"
     },
     {
-      "id": "hh_nashville", "label": "a musician in Nashville", "region": "Tennessee", "timezone": "America/Chicago",
-      "tier": "background", "avatar": "Lark", "personality": ["creative"],
-      "tips": [
-        {"id": "tip_guitar_stand", "keywords": ["music", "practice", "guitar", "instrument", "habit", "hobby"], "topic": "practice", "phrase": "leaving the guitar on its stand", "popularity": 2,
-         "text": "Leave your instrument out of its case on a stand. You will pick it up far more often than if it is packed away."}
+      "id": "hh_nashville",
+      "label": "a musician in Nashville",
+      "region": "Tennessee",
+      "timezone": "America/Chicago",
+      "tier": "background",
+      "avatar": "Lark",
+      "personality": [
+        "creative"
       ],
-      "questions": [], "gratitude": ["water_plants"]
+      "tips": [
+        {
+          "id": "tip_guitar_stand",
+          "keywords": [
+            "music",
+            "practice",
+            "guitar",
+            "instrument",
+            "habit",
+            "hobby"
+          ],
+          "topic": "practice",
+          "phrase": "leaving the guitar on its stand",
+          "popularity": 2,
+          "text": "Leave your instrument out of its case on a stand. You will pick it up far more often than if it is packed away."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "water_plants"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_raleigh", "label": "a family with a dog in Raleigh", "region": "North Carolina", "timezone": "America/New_York",
-      "tier": "background", "avatar": "Rowan", "personality": ["playful"],
-      "tips": [
-        {"id": "tip_chew_toy", "keywords": ["dog", "pet", "busy", "calm", "call", "puppy"], "topic": "dogs at home", "phrase": "the frozen chew toy", "popularity": 3,
-         "text": "Freeze xylitol-free peanut butter inside a chew toy. It buys a calm half hour while you are on calls."}
+      "id": "hh_raleigh",
+      "label": "a family with a dog in Raleigh",
+      "region": "North Carolina",
+      "timezone": "America/New_York",
+      "tier": "background",
+      "avatar": "Rowan",
+      "personality": [
+        "playful"
       ],
-      "questions": [], "gratitude": ["rainy"]
+      "tips": [
+        {
+          "id": "tip_chew_toy",
+          "keywords": [
+            "dog",
+            "pet",
+            "busy",
+            "calm",
+            "call",
+            "puppy"
+          ],
+          "topic": "dogs at home",
+          "phrase": "the frozen chew toy",
+          "popularity": 3,
+          "text": "Freeze xylitol-free peanut butter inside a chew toy. It buys a calm half hour while you are on calls."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "rainy"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_sandiego", "label": "a military family in San Diego", "region": "California", "timezone": "America/Los_Angeles",
-      "tier": "background", "avatar": "Coral", "personality": ["resilient"],
-      "tips": [
-        {"id": "tip_first_night_box", "keywords": ["move", "moving", "pack", "new", "home", "house", "box"], "topic": "moving", "phrase": "the first-night moving box", "popularity": 4,
-         "text": "Pack a first-night box with sheets, towels, chargers, a kettle and snacks. Label it and load it last."}
+      "id": "hh_sandiego",
+      "label": "a military family in San Diego",
+      "region": "California",
+      "timezone": "America/Los_Angeles",
+      "tier": "background",
+      "avatar": "Coral",
+      "personality": [
+        "resilient"
       ],
-      "questions": [], "gratitude": []
+      "tips": [
+        {
+          "id": "tip_first_night_box",
+          "keywords": [
+            "move",
+            "moving",
+            "pack",
+            "new",
+            "home",
+            "house",
+            "box"
+          ],
+          "topic": "moving",
+          "phrase": "the first-night moving box",
+          "popularity": 4,
+          "text": "Pack a first-night box with sheets, towels, chargers, a kettle and snacks. Label it and load it last."
+        }
+      ],
+      "questions": [],
+      "gratitude": [],
+      "language": "en"
     },
     {
-      "id": "hh_columbus", "label": "an office worker caring for a parent in Columbus", "region": "Ohio", "timezone": "America/New_York",
-      "tier": "background", "avatar": "Ash", "personality": ["devoted"],
-      "tips": [
-        {"id": "tip_visit_notebook", "keywords": ["parent", "care", "caregiver", "doctor", "appointment", "elderly", "health", "medicine"], "topic": "caring for a parent", "phrase": "the doctor-visit notebook", "popularity": 4,
-         "text": "Keep one notebook for all doctor visits: questions on the left page, answers on the right. Bring it every time."}
+      "id": "hh_columbus",
+      "label": "an office worker caring for a parent in Columbus",
+      "region": "Ohio",
+      "timezone": "America/New_York",
+      "tier": "background",
+      "avatar": "Ash",
+      "personality": [
+        "devoted"
       ],
-      "questions": [{"topic": "caregiver breaks", "text": "How do other caregivers find a little time for themselves?"}],
-      "gratitude": ["medicine"]
+      "tips": [
+        {
+          "id": "tip_visit_notebook",
+          "keywords": [
+            "parent",
+            "care",
+            "caregiver",
+            "doctor",
+            "appointment",
+            "elderly",
+            "health",
+            "medicine"
+          ],
+          "topic": "caring for a parent",
+          "phrase": "the doctor-visit notebook",
+          "popularity": 4,
+          "text": "Keep one notebook for all doctor visits: questions on the left page, answers on the right. Bring it every time."
+        }
+      ],
+      "questions": [
+        {
+          "topic": "caregiver breaks",
+          "text": "How do other caregivers find a little time for themselves?"
+        }
+      ],
+      "gratitude": [
+        "medicine"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_honolulu", "label": "a retired fisherman in Honolulu", "region": "Hawaii", "timezone": "Pacific/Honolulu",
-      "tier": "background", "avatar": "Kai", "personality": ["calm"],
-      "tips": [
-        {"id": "tip_crisp_fish", "keywords": ["fish", "cook", "dinner", "crispy", "salmon", "recipe"], "topic": "cooking fish", "phrase": "the dry-and-salt fish skin", "popularity": 3,
-         "text": "Pat fish completely dry and salt it ten minutes before cooking. The skin comes out crisp every time."}
+      "id": "hh_honolulu",
+      "label": "a retired fisherman in Keelung",
+      "region": "Taiwan",
+      "timezone": "Asia/Taipei",
+      "tier": "background",
+      "avatar": "Kai",
+      "personality": [
+        "calm"
       ],
-      "questions": [], "gratitude": []
+      "tips": [
+        {
+          "id": "tip_crisp_fish",
+          "keywords": [
+            "fish",
+            "cook",
+            "dinner",
+            "crispy",
+            "salmon",
+            "recipe",
+            "dry",
+            "salt",
+            "skin"
+          ],
+          "topic": "cooking fish",
+          "phrase": "把鱼擦干再撒盐",
+          "popularity": 3,
+          "text": "煎鱼前把鱼完全擦干，提前十分钟撒盐，鱼皮每次都会煎得酥脆。"
+        }
+      ],
+      "questions": [],
+      "gratitude": [],
+      "language": "zh"
     },
     {
-      "id": "hh_anchorage", "label": "a family in Anchorage", "region": "Alaska", "timezone": "America/Anchorage",
-      "tier": "background", "avatar": "Aurora", "personality": ["hardy"],
-      "tips": [
-        {"id": "tip_breakfast_lamp", "keywords": ["winter", "dark", "morning", "mood", "light", "tired"], "topic": "dark winters", "phrase": "the bright breakfast lamp", "popularity": 3,
-         "text": "Turn on a bright lamp at breakfast during the dark months. Mornings feel much less heavy."}
+      "id": "hh_anchorage",
+      "label": "a family in Anchorage",
+      "region": "Alaska",
+      "timezone": "America/Anchorage",
+      "tier": "background",
+      "avatar": "Aurora",
+      "personality": [
+        "hardy"
       ],
-      "questions": [], "gratitude": ["bedtime"]
+      "tips": [
+        {
+          "id": "tip_breakfast_lamp",
+          "keywords": [
+            "winter",
+            "dark",
+            "morning",
+            "mood",
+            "light",
+            "tired"
+          ],
+          "topic": "dark winters",
+          "phrase": "the bright breakfast lamp",
+          "popularity": 3,
+          "text": "Turn on a bright lamp at breakfast during the dark months. Mornings feel much less heavy."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "bedtime"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_kyoto", "label": "an elderly couple in Kyoto", "region": "Kyoto", "timezone": "Asia/Tokyo",
-      "tier": "background", "avatar": "Sakura", "personality": ["gentle"],
-      "tips": [
-        {"id": "tip_green_tea", "keywords": ["tea", "drink", "bitter", "brew", "relax"], "topic": "green tea", "phrase": "letting the water cool for green tea", "popularity": 3,
-         "text": "Let boiled water cool for a minute before pouring it over green tea. It tastes sweeter and less bitter."}
+      "id": "hh_kyoto",
+      "label": "an elderly couple in Kyoto",
+      "region": "Kyoto",
+      "timezone": "Asia/Tokyo",
+      "tier": "background",
+      "avatar": "Sakura",
+      "personality": [
+        "gentle"
       ],
-      "questions": [], "gratitude": ["medicine", "call_family"]
+      "tips": [
+        {
+          "id": "tip_green_tea",
+          "keywords": [
+            "tea",
+            "drink",
+            "bitter",
+            "brew",
+            "relax",
+            "water"
+          ],
+          "topic": "green tea",
+          "phrase": "緑茶のお湯を少し冷ますこと",
+          "popularity": 3,
+          "text": "沸かしたお湯を1分ほど冷ましてから緑茶に注ぐ。甘みが出て、苦みがやわらぎます。"
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "medicine",
+        "call_family"
+      ],
+      "language": "ja"
     },
     {
-      "id": "hh_fukuoka", "label": "a nursery teacher in Fukuoka", "region": "Fukuoka", "timezone": "Asia/Tokyo",
-      "tier": "background", "avatar": "Hana", "personality": ["cheerful"],
-      "tips": [
-        {"id": "tip_song_tidy", "keywords": ["kids", "tidy", "clean", "toys", "chores", "mess", "game", "rainy", "indoor"], "topic": "tidying with kids", "phrase": "the one-song tidy-up race", "popularity": 4,
-         "text": "Turn tidying into a race against one song. Kids love beating the music."}
+      "id": "hh_fukuoka",
+      "label": "a nursery teacher in Fukuoka",
+      "region": "Fukuoka",
+      "timezone": "Asia/Tokyo",
+      "tier": "background",
+      "avatar": "Hana",
+      "personality": [
+        "cheerful"
       ],
-      "questions": [], "gratitude": ["rainy"]
+      "tips": [
+        {
+          "id": "tip_song_tidy",
+          "keywords": [
+            "kids",
+            "tidy",
+            "clean",
+            "toys",
+            "chores",
+            "mess",
+            "game",
+            "rainy",
+            "indoor",
+            "song",
+            "race",
+            "music"
+          ],
+          "topic": "tidying with kids",
+          "phrase": "1曲お片づけ競争",
+          "popularity": 4,
+          "text": "片づけを、1曲が終わるまでの競争にする。子どもは音楽に勝つのが大好きです。"
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "rainy"
+      ],
+      "language": "ja"
     },
     {
-      "id": "hh_sendai", "label": "a single mother of two in Sendai", "region": "Miyagi", "timezone": "Asia/Tokyo",
-      "tier": "background", "avatar": "Kaede", "personality": ["determined"],
-      "tips": [
-        {"id": "tip_double_batch", "keywords": ["cook", "meal", "dinner", "prep", "freeze", "busy", "weeknight", "parent", "quick"], "topic": "busy evenings", "phrase": "the Sunday double batch", "popularity": 4,
-         "text": "Cook a double batch on Sunday and freeze half in labeled bags laid flat. Weeknight dinners become reheat and serve."}
+      "id": "hh_sendai",
+      "label": "a single mother of two in Sendai",
+      "region": "Miyagi",
+      "timezone": "Asia/Tokyo",
+      "tier": "background",
+      "avatar": "Kaede",
+      "personality": [
+        "determined"
       ],
-      "questions": [{"topic": "time for myself", "text": "Ten-minute ways to recharge when the kids are finally asleep?"}],
-      "gratitude": ["bedtime"]
+      "tips": [
+        {
+          "id": "tip_double_batch",
+          "keywords": [
+            "cook",
+            "meal",
+            "dinner",
+            "prep",
+            "freeze",
+            "busy",
+            "weeknight",
+            "parent",
+            "quick",
+            "sunday",
+            "reheat"
+          ],
+          "topic": "busy evenings",
+          "phrase": "日曜日の倍量づくり",
+          "popularity": 4,
+          "text": "日曜日に倍の量を作り、半分は中身を書いた袋に平らに入れて冷凍。平日の夕飯は温めて出すだけになります。"
+        }
+      ],
+      "questions": [
+        {
+          "topic": "time for myself",
+          "text": "子どもがやっと寝たあと、10分で元気を取り戻す方法は？"
+        }
+      ],
+      "gratitude": [
+        "bedtime"
+      ],
+      "language": "ja"
     },
     {
-      "id": "hh_nagoya", "label": "a factory worker living alone in Nagoya", "region": "Aichi", "timezone": "Asia/Tokyo",
-      "tier": "background", "avatar": "Tetsu", "personality": ["quiet"],
-      "tips": [
-        {"id": "tip_shake_shirts", "keywords": ["laundry", "ironing", "shirt", "clothes", "wrinkle"], "topic": "laundry", "phrase": "the shake-and-hang shirts", "popularity": 3,
-         "text": "Hang shirts on hangers straight from the washer and give each a firm shake. Most won't need ironing."}
+      "id": "hh_nagoya",
+      "label": "a factory worker living alone in Nagoya",
+      "region": "Aichi",
+      "timezone": "Asia/Tokyo",
+      "tier": "background",
+      "avatar": "Tetsu",
+      "personality": [
+        "quiet"
       ],
-      "questions": [], "gratitude": []
+      "tips": [
+        {
+          "id": "tip_shake_shirts",
+          "keywords": [
+            "laundry",
+            "ironing",
+            "shirt",
+            "clothes",
+            "wrinkle",
+            "iron",
+            "hanger",
+            "washer"
+          ],
+          "topic": "laundry",
+          "phrase": "振ってから干すシャツ",
+          "popularity": 3,
+          "text": "洗濯機から出したシャツをすぐハンガーにかけ、1枚ずつしっかり振る。ほとんどアイロンがいらなくなります。"
+        }
+      ],
+      "questions": [],
+      "gratitude": [],
+      "language": "ja"
     },
     {
-      "id": "hh_okinawa", "label": "a grandmother in Okinawa", "region": "Okinawa", "timezone": "Asia/Tokyo",
-      "tier": "background", "avatar": "Chura", "personality": ["sunny"],
-      "tips": [
-        {"id": "tip_kettle_stretch", "keywords": ["exercise", "stretch", "active", "morning", "habit", "senior", "health"], "topic": "staying active", "phrase": "stretching while the kettle boils", "popularity": 4,
-         "text": "Do your stretches while the kettle boils every morning. It becomes a habit without needing extra time."}
+      "id": "hh_okinawa",
+      "label": "a grandmother in Okinawa",
+      "region": "Okinawa",
+      "timezone": "Asia/Tokyo",
+      "tier": "background",
+      "avatar": "Chura",
+      "personality": [
+        "sunny"
       ],
-      "questions": [], "gratitude": ["medicine", "water_plants"]
+      "tips": [
+        {
+          "id": "tip_kettle_stretch",
+          "keywords": [
+            "exercise",
+            "stretch",
+            "active",
+            "morning",
+            "habit",
+            "senior",
+            "health",
+            "kettle"
+          ],
+          "topic": "staying active",
+          "phrase": "お湯を沸かす間のストレッチ",
+          "popularity": 4,
+          "text": "毎朝、やかんでお湯を沸かしている間にストレッチ。時間を増やさずに習慣になります。"
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "medicine",
+        "water_plants"
+      ],
+      "language": "ja"
     },
     {
-      "id": "hh_yokohama", "label": "a couple with a toddler in Yokohama", "region": "Kanagawa", "timezone": "Asia/Tokyo",
-      "tier": "background", "avatar": "Sora", "personality": ["lively"],
-      "tips": [
-        {"id": "tip_cookie_cutter", "keywords": ["toddler", "kids", "picky", "eat", "vegetable", "food", "meal"], "topic": "toddler meals", "phrase": "the cookie-cutter vegetables", "popularity": 3,
-         "text": "Cut food into shapes with a cookie cutter. Even vegetables disappear faster."}
+      "id": "hh_yokohama",
+      "label": "a couple with a toddler in Yokohama",
+      "region": "Kanagawa",
+      "timezone": "Asia/Tokyo",
+      "tier": "background",
+      "avatar": "Sora",
+      "personality": [
+        "lively"
       ],
-      "questions": [], "gratitude": ["rainy", "bedtime"]
+      "tips": [
+        {
+          "id": "tip_cookie_cutter",
+          "keywords": [
+            "toddler",
+            "kids",
+            "picky",
+            "eat",
+            "vegetable",
+            "food",
+            "meal",
+            "shape"
+          ],
+          "topic": "toddler meals",
+          "phrase": "クッキー型の野菜",
+          "popularity": 3,
+          "text": "クッキー型で食べ物を型抜きする。野菜までどんどんなくなります。"
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "rainy",
+        "bedtime"
+      ],
+      "language": "ja"
     },
     {
-      "id": "hh_hiroshima", "label": "a university student in Hiroshima", "region": "Hiroshima", "timezone": "Asia/Tokyo",
-      "tier": "background", "avatar": "Nagi", "personality": ["studious"],
-      "tips": [
-        {"id": "tip_next_step_note", "keywords": ["study", "focus", "procrastinate", "exam", "student", "work"], "topic": "studying", "phrase": "the sticky-note next step", "popularity": 3,
-         "text": "Study in 25-minute blocks and write the next small step on a sticky note before every break."}
+      "id": "hh_hiroshima",
+      "label": "a university student in Hiroshima",
+      "region": "Hiroshima",
+      "timezone": "Asia/Tokyo",
+      "tier": "background",
+      "avatar": "Nagi",
+      "personality": [
+        "studious"
       ],
-      "questions": [], "gratitude": ["call_family"]
+      "tips": [
+        {
+          "id": "tip_next_step_note",
+          "keywords": [
+            "study",
+            "focus",
+            "procrastinate",
+            "exam",
+            "student",
+            "work",
+            "sticky",
+            "note",
+            "minute"
+          ],
+          "topic": "studying",
+          "phrase": "付箋に書く次の一歩",
+          "popularity": 3,
+          "text": "25分ずつ勉強し、休憩の前に次の小さな一歩を付箋に書いておく。"
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "call_family"
+      ],
+      "language": "ja"
     },
     {
-      "id": "hh_london", "label": "a retired nurse in London", "region": "England", "timezone": "Europe/London",
-      "tier": "background", "avatar": "Bramble", "personality": ["wise"],
-      "tips": [
-        {"id": "tip_pill_box", "keywords": ["medicine", "pills", "medication", "remember", "health", "senior", "routine"], "topic": "medicine routine", "phrase": "the Sunday pill box routine", "popularity": 4,
-         "text": "Use a weekly pill box and fill it on the same day each week, right after Sunday breakfast."}
+      "id": "hh_london",
+      "label": "a retired nurse in London",
+      "region": "England",
+      "timezone": "Europe/London",
+      "tier": "background",
+      "avatar": "Bramble",
+      "personality": [
+        "wise"
       ],
-      "questions": [], "gratitude": ["medicine"]
+      "tips": [
+        {
+          "id": "tip_pill_box",
+          "keywords": [
+            "medicine",
+            "pills",
+            "medication",
+            "remember",
+            "health",
+            "senior",
+            "routine"
+          ],
+          "topic": "medicine routine",
+          "phrase": "the Sunday pill box routine",
+          "popularity": 4,
+          "text": "Use a weekly pill box and fill it on the same day each week, right after Sunday breakfast."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "medicine"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_toronto", "label": "a newcomer family in Toronto", "region": "Ontario", "timezone": "America/Toronto",
-      "tier": "background", "avatar": "Birch", "personality": ["hopeful"],
-      "tips": [
-        {"id": "tip_library_first", "keywords": ["new", "city", "move", "homesick", "lonely", "neighborhood", "community", "friends"], "topic": "new city", "phrase": "starting at the local library", "popularity": 3,
-         "text": "Visit the local library first. They often have free classes, events and people who know the neighborhood."}
+      "id": "hh_toronto",
+      "label": "a newcomer family in Toronto",
+      "region": "Ontario",
+      "timezone": "America/Toronto",
+      "tier": "background",
+      "avatar": "Birch",
+      "personality": [
+        "hopeful"
       ],
-      "questions": [], "gratitude": ["call_family"]
+      "tips": [
+        {
+          "id": "tip_library_first",
+          "keywords": [
+            "new",
+            "city",
+            "move",
+            "homesick",
+            "lonely",
+            "neighborhood",
+            "community",
+            "friends"
+          ],
+          "topic": "new city",
+          "phrase": "starting at the local library",
+          "popularity": 3,
+          "text": "Visit the local library first. They often have free classes, events and people who know the neighborhood."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "call_family"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_dallas", "label": "a long-haul trucker's family in Dallas", "region": "Texas", "timezone": "America/Chicago",
-      "tier": "background", "avatar": "Mesa", "personality": ["loyal"],
-      "tips": [
-        {"id": "tip_shared_book", "keywords": ["kids", "family", "away", "travel", "call", "connect", "parent", "bedtime"], "topic": "staying in touch", "phrase": "the shared bedtime book", "popularity": 3,
-         "text": "Read the same book as your kids while you are away and talk about one chapter on each call."}
+      "id": "hh_dallas",
+      "label": "a long-haul trucker's family in Dallas",
+      "region": "Texas",
+      "timezone": "America/Chicago",
+      "tier": "background",
+      "avatar": "Mesa",
+      "personality": [
+        "loyal"
       ],
-      "questions": [], "gratitude": ["call_family", "bedtime"]
+      "tips": [
+        {
+          "id": "tip_shared_book",
+          "keywords": [
+            "kids",
+            "family",
+            "away",
+            "travel",
+            "call",
+            "connect",
+            "parent",
+            "bedtime"
+          ],
+          "topic": "staying in touch",
+          "phrase": "the shared bedtime book",
+          "popularity": 3,
+          "text": "Read the same book as your kids while you are away and talk about one chapter on each call."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "call_family",
+        "bedtime"
+      ],
+      "language": "en"
     },
     {
-      "id": "hh_miami", "label": "a retired couple who love dancing in Miami", "region": "Florida", "timezone": "America/New_York",
-      "tier": "background", "avatar": "Coco", "personality": ["joyful"],
-      "tips": [
-        {"id": "tip_dinner_dance", "keywords": ["exercise", "active", "dance", "music", "fun", "senior", "cook"], "topic": "staying active", "phrase": "dancing while dinner cooks", "popularity": 3,
-         "text": "Put on one song and dance through it while dinner cooks. It is the easiest exercise of the day."}
+      "id": "hh_miami",
+      "label": "a retired couple who love dancing in Miami",
+      "region": "Florida",
+      "timezone": "America/New_York",
+      "tier": "background",
+      "avatar": "Coco",
+      "personality": [
+        "joyful"
       ],
-      "questions": [], "gratitude": []
+      "tips": [
+        {
+          "id": "tip_dinner_dance",
+          "keywords": [
+            "exercise",
+            "active",
+            "dance",
+            "music",
+            "fun",
+            "senior",
+            "cook",
+            "song"
+          ],
+          "topic": "staying active",
+          "phrase": "bailar mientras se cocina la cena",
+          "popularity": 3,
+          "text": "Pon una canción y báilala entera mientras se cocina la cena. Es el ejercicio más fácil del día."
+        }
+      ],
+      "questions": [],
+      "gratitude": [],
+      "language": "es"
     },
     {
-      "id": "hh_saltlake", "label": "a big family in Salt Lake City", "region": "Utah", "timezone": "America/Denver",
-      "tier": "background", "avatar": "Aspen", "personality": ["organized"],
-      "tips": [
-        {"id": "tip_chore_jar", "keywords": ["chores", "kids", "family", "clean", "fair", "fight", "tidy"], "topic": "family chores", "phrase": "the chore-stick jar", "popularity": 4,
-         "text": "Write chores on craft sticks in a jar. Everyone draws two after dinner, and nobody argues about who does what."}
+      "id": "hh_saltlake",
+      "label": "a big family in São Paulo",
+      "region": "São Paulo",
+      "timezone": "America/Sao_Paulo",
+      "tier": "background",
+      "avatar": "Aspen",
+      "personality": [
+        "organized"
       ],
-      "questions": [], "gratitude": ["rainy"]
+      "tips": [
+        {
+          "id": "tip_chore_jar",
+          "keywords": [
+            "chores",
+            "kids",
+            "family",
+            "clean",
+            "fair",
+            "fight",
+            "tidy",
+            "stick",
+            "jar",
+            "dinner"
+          ],
+          "topic": "family chores",
+          "phrase": "o pote de palitos de tarefas",
+          "popularity": 4,
+          "text": "Escreva as tarefas em palitos de picolé dentro de um pote. Depois do jantar, cada um tira dois, e ninguém discute quem faz o quê."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "rainy"
+      ],
+      "language": "pt"
     },
     {
-      "id": "hh_detroit", "label": "a retired autoworker living alone in Detroit", "region": "Michigan", "timezone": "America/Detroit",
-      "tier": "background", "avatar": "Flint", "personality": ["proud"],
-      "tips": [
-        {"id": "tip_photo_first", "keywords": ["fix", "repair", "diy", "broken", "cable", "appliance"], "topic": "fixing things", "phrase": "taking a photo before taking it apart", "popularity": 3,
-         "text": "Take a photo before you unplug or take anything apart. Putting it back together is easy then."}
+      "id": "hh_detroit",
+      "label": "a retired autoworker living alone in Seoul",
+      "region": "Seoul",
+      "timezone": "Asia/Seoul",
+      "tier": "background",
+      "avatar": "Flint",
+      "personality": [
+        "proud"
       ],
-      "questions": [], "gratitude": ["medicine"]
+      "tips": [
+        {
+          "id": "tip_photo_first",
+          "keywords": [
+            "fix",
+            "repair",
+            "diy",
+            "broken",
+            "cable",
+            "appliance",
+            "photo",
+            "apart",
+            "unplug"
+          ],
+          "topic": "fixing things",
+          "phrase": "분해하기 전에 사진 찍기",
+          "popularity": 3,
+          "text": "플러그를 뽑거나 무언가를 분해하기 전에 사진을 찍어 두세요. 다시 조립하기가 훨씬 쉬워져요."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "medicine"
+      ],
+      "language": "ko"
     },
     {
-      "id": "hh_kobe", "label": "a pastry chef in Kobe", "region": "Hyogo", "timezone": "Asia/Tokyo",
-      "tier": "background", "avatar": "Mugi", "personality": ["precise"],
-      "tips": [
-        {"id": "tip_room_temp", "keywords": ["bake", "baking", "cake", "butter", "eggs", "oven"], "topic": "baking", "phrase": "setting out eggs while the oven preheats", "popularity": 2,
-         "text": "Bring eggs and butter to room temperature by setting them out while the oven preheats."}
+      "id": "hh_kobe",
+      "label": "a pastry chef in Kobe",
+      "region": "Hyogo",
+      "timezone": "Asia/Tokyo",
+      "tier": "background",
+      "avatar": "Mugi",
+      "personality": [
+        "precise"
       ],
-      "questions": [], "gratitude": []
+      "tips": [
+        {
+          "id": "tip_room_temp",
+          "keywords": [
+            "bake",
+            "baking",
+            "cake",
+            "butter",
+            "eggs",
+            "oven",
+            "temperature",
+            "preheat"
+          ],
+          "topic": "baking",
+          "phrase": "予熱の間に卵を出しておくこと",
+          "popularity": 2,
+          "text": "オーブンを予熱している間に卵とバターを出しておけば、ちょうど室温になります。"
+        }
+      ],
+      "questions": [],
+      "gratitude": [],
+      "language": "ja"
     },
     {
-      "id": "hh_pittsburgh", "label": "a couple with an older dog in Pittsburgh", "region": "Pennsylvania", "timezone": "America/New_York",
-      "tier": "background", "avatar": "Biscuit", "personality": ["tender"],
-      "tips": [
-        {"id": "tip_bath_mat", "keywords": ["dog", "pet", "old", "senior", "slip", "floor"], "topic": "older pets", "phrase": "the bath mat by the water bowl", "popularity": 2,
-         "text": "Put a non-slip bath mat by the water bowl for an older dog. It stops slipping on smooth floors."}
+      "id": "hh_pittsburgh",
+      "label": "a couple with an older dog in Berlin",
+      "region": "Berlin",
+      "timezone": "Europe/Berlin",
+      "tier": "background",
+      "avatar": "Biscuit",
+      "personality": [
+        "tender"
       ],
-      "questions": [], "gratitude": ["water_plants"]
+      "tips": [
+        {
+          "id": "tip_bath_mat",
+          "keywords": [
+            "dog",
+            "pet",
+            "old",
+            "senior",
+            "slip",
+            "floor",
+            "mat"
+          ],
+          "topic": "older pets",
+          "phrase": "die Badematte am Wassernapf",
+          "popularity": 2,
+          "text": "Leg für einen älteren Hund eine rutschfeste Badematte neben den Wassernapf. So rutscht er auf glatten Böden nicht mehr aus."
+        }
+      ],
+      "questions": [],
+      "gratitude": [
+        "water_plants"
+      ],
+      "language": "de"
     }
   ]
 }

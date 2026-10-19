@@ -9,9 +9,11 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, Field
 
+from overhearth import i18n
 from overhearth.kinds.base import Carry, Effect, Event, KindHandler, ReportLine, TickContext
 from overhearth.models import Household, Packet, ReportItem, TownEvent
 from overhearth.text import answers, relevance
+from overhearth.translate import text_key
 
 TREND_WINDOW = timedelta(days=7)
 TREND_CANDIDATES = 6
@@ -23,6 +25,8 @@ class TipPayload(BaseModel):
     text: str = Field(min_length=1, max_length=500)
     keywords: list[Annotated[str, Field(max_length=24)]] = Field(default_factory=list, max_length=16)
     """Search words (synonyms, related needs) so everyday questions can find the tip."""
+    phrase: str | None = Field(default=None, max_length=80)
+    """How people name it when they thank for it ("the ten-minute egg dinner")."""
 
 
 class Tip(KindHandler):
@@ -39,14 +43,21 @@ class Tip(KindHandler):
         if packet.origin_household == listener.id or packet.id in ctx.store.carried(listener.id):
             return []
         topic = packet.payload["topic"]
+        heard = ctx.localized(packet, listener.id, ("topic", "text"))
         return [
             Carry(listener.id, packet.id),
             ReportLine(
                 listener.id,
                 ReportItem(
                     kind="tip",
-                    text=f"{carrier.avatar_name} passed on a tip about {topic} from "
-                    f"{ctx.label(packet.origin_household)}: {packet.payload['text']}",
+                    text=i18n.say(
+                        ctx.language(listener.id),
+                        "tip",
+                        carrier=carrier.avatar_name,
+                        topic=heard["topic"],
+                        origin=ctx.label(packet.origin_household, listener.id),
+                        text=heard["text"],
+                    ),
                     refs=[packet.id],
                 ),
             ),
@@ -114,8 +125,14 @@ class Question(KindHandler):
                     asker_id,
                     ReportItem(
                         kind="answer",
-                        text=f"You wondered about {topic}. {listener.avatar_name} knew something from "
-                        f"{ctx.label(tip.origin_household)}: {tip.payload['text']}",
+                        text=i18n.say(
+                            ctx.language(asker_id),
+                            "answer",
+                            topic=ctx.localized(packet, asker_id, ("topic",))["topic"],
+                            helper=listener.avatar_name,
+                            origin=ctx.label(tip.origin_household, asker_id),
+                            text=ctx.localized(tip, asker_id, ("text",))["text"],
+                        ),
                         refs=[tip.id, packet.id],
                     ),
                 ),
@@ -139,8 +156,12 @@ class Question(KindHandler):
                 listener.id,
                 ReportItem(
                     kind="question",
-                    text=f"Someone from {ctx.label(asker_id)} is wondering about {topic}: "
-                    f"{packet.payload['text']} If you know, tell me and I'll take it to town.",
+                    text=i18n.say(
+                        ctx.language(listener.id),
+                        "wondering",
+                        origin=ctx.label(asker_id, listener.id),
+                        **ctx.localized(packet, listener.id, ("topic", "text")),
+                    ),
                     refs=[packet.id],
                 ),
             ),
@@ -225,15 +246,19 @@ class Thanks(KindHandler):
             heard_at = min(pending.since, ctx.since) if pending else ctx.since
             unheard = [t for t in every if t.created_at > heard_at] or thanks
             homes = sorted({t.origin_household for t in unheard})
-            times = "once" if len(unheard) == 1 else f"{len(unheard)} times"
-            places = "one home" if len(homes) == 1 else f"{len(homes)} homes"
+            home_language = ctx.language(tip.origin_household)
             effects.append(
                 ReportLine(
                     tip.origin_household,
                     ReportItem(
                         kind="thanks_return",
-                        text=f"Your tip about {tip.payload['topic']} was thanked {times} in {places} "
-                        "since we last talked.",
+                        text=i18n.say(
+                            home_language,
+                            "thanks_return",
+                            topic=ctx.localized(tip, tip.origin_household, ("topic",))["topic"],
+                            times=i18n.count_times(home_language, len(unheard)),
+                            places=i18n.count_homes(home_language, len(homes)),
+                        ),
                         refs=[tip_id],
                         key=f"thanks_return:{tip_id}",
                     ),
@@ -257,32 +282,55 @@ class Thanks(KindHandler):
             )
         return effects
 
+    def _concept(self, thanks: Packet) -> str:
+        """What a thanks is for, the same in every language: a tip, a common theme, or the words."""
+        if thanks.payload.get("tip_id"):
+            return f"tip:{thanks.payload['tip_id']}"
+        key = i18n.theme_key(thanks.payload["what_helped"])
+        return f"theme:{key}" if key else text_key(thanks.payload["what_helped"].strip().rstrip(".").lower())
+
+    def _say_concept(self, concept: str, example: Packet, listener_id: str, ctx: TickContext) -> str:
+        language = ctx.language(listener_id)
+        kind, _, value = concept.partition(":")
+        if kind == "theme":
+            return i18n.theme(value, language) or example.payload["what_helped"]
+        if kind == "tip":
+            tip = ctx.store.get_packet(value)
+            if tip is not None:
+                phrase = ctx.localized(tip, listener_id, ("phrase",)).get("phrase")
+                if phrase:
+                    return phrase
+        # Free words: translate the thanks itself.
+        return ctx.localized(example, listener_id, ("what_helped",))["what_helped"]
+
     def _trends(self, ctx: TickContext) -> list[Effect]:
         """What other homes have been thankful for lately, for avatars that were out."""
         recent = [t for t in ctx.store.packets(kind=self.kind) if t.created_at > ctx.at - TREND_WINDOW]
-        homes_by_theme: dict[str, set[str]] = defaultdict(set)
+        homes_by_concept: dict[str, set[str]] = defaultdict(set)
+        example: dict[str, Packet] = {}
         for thanks in recent:
-            homes_by_theme[thanks.payload["what_helped"].strip().rstrip(".").lower()].add(thanks.origin_household)
+            concept = self._concept(thanks)
+            homes_by_concept[concept].add(thanks.origin_household)
+            example.setdefault(concept, thanks)
         effects: list[Effect] = []
         for household_id in sorted(ctx.out):
             pending = ctx.store.latest_report(household_id)
             if pending and any(item.kind == "trend" for item in pending.items):
                 continue
             ranked = sorted(
-                ((len(homes - {household_id}), theme) for theme, homes in homes_by_theme.items()),
+                ((len(homes - {household_id}), concept) for concept, homes in homes_by_concept.items()),
                 reverse=True,
             )
-            candidates = [theme for count, theme in ranked if count >= 2][:TREND_CANDIDATES]
-            themes = random.Random(f"{household_id}:{ctx.tick}").sample(candidates, min(2, len(candidates)))
-            if not themes:
+            candidates = [concept for count, concept in ranked if count >= 2][:TREND_CANDIDATES]
+            picked = random.Random(f"{household_id}:{ctx.tick}").sample(candidates, min(2, len(candidates)))
+            if not picked:
                 continue
+            language = ctx.language(household_id)
+            themes = [self._say_concept(c, example[c], household_id, ctx) for c in picked]
             effects.append(
                 ReportLine(
                     household_id,
-                    ReportItem(
-                        kind="trend",
-                        text=f"Around town lately, people have been thankful for {' and '.join(themes)}.",
-                    ),
+                    ReportItem(kind="trend", text=i18n.say(language, "trend", themes=i18n.join(language, themes))),
                 )
             )
         return effects

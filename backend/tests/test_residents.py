@@ -1,6 +1,7 @@
 import random
 from datetime import timedelta
 
+from overhearth import i18n
 from overhearth.engine import TemplateDialogue, run_tick
 from overhearth.engine.residents import simulate_residents
 from overhearth.models import utcnow
@@ -71,5 +72,5 @@ def test_an_unheard_report_says_each_returned_tip_once_with_the_total():
             for t in store.packets(kind="thanks")
             if t.payload.get("tip_id") == tip_id and t.created_at > report.since and t.origin_household != "hh_osaka"
         ]
-        times = "once" if len(expected) == 1 else f"{len(expected)} times"
-        assert f"thanked {times}" in item.text
+        language = store.get_household("hh_osaka").language
+        assert i18n.count_times(language, len(expected)) in item.text
