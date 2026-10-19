@@ -29,7 +29,12 @@ class OpenAIPainter:
         self.size = size
 
     def paint(self, prompt: str) -> bytes | None:
-        body = json.dumps({"model": self.model, "prompt": prompt, "size": self.size, "n": 1}).encode()
+        # WebP at 80 is ~250 KB instead of a ~3.5 MB PNG; fall back to PNG where WebP isn't offered.
+        webp = {"output_format": "webp", "output_compression": 80}
+        return self._paint({"model": self.model, "prompt": prompt, "size": self.size, "n": 1, **webp}, retry=True)
+
+    def _paint(self, payload: dict, *, retry: bool) -> bytes | None:
+        body = json.dumps(payload).encode()
         request = urllib.request.Request(
             "https://api.openai.com/v1/images/generations",
             data=body,
@@ -39,7 +44,11 @@ class OpenAIPainter:
             with urllib.request.urlopen(request, timeout=180) as response:
                 data = json.loads(response.read())
         except urllib.error.HTTPError as error:
-            log.warning("image generation failed: HTTP %s %s", error.code, error.read()[:300])
+            detail = error.read()[:300]
+            if retry and error.code == 400 and b"output_" in detail:
+                plain = {k: v for k, v in payload.items() if not k.startswith("output_")}
+                return self._paint(plain, retry=False)
+            log.warning("image generation failed: HTTP %s %s", error.code, detail)
             return None
         except Exception as error:
             log.warning("image generation failed: %s", type(error).__name__)
@@ -58,9 +67,18 @@ def painter_from_env() -> Painter | None:
     return OpenAIPainter(key) if key else None
 
 
+def picture_type(data: bytes) -> tuple[str, str]:
+    """File extension and media type, from the bytes."""
+    if data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "webp", "image/webp"
+    if data[:3] == bytes([0xFF, 0xD8, 0xFF]):
+        return "jpg", "image/jpeg"
+    return "png", "image/png"
+
+
 class ImageStore(Protocol):
     def save(self, name: str, data: bytes) -> str:
-        """Keep a PNG and return the URL people's screens load it from."""
+        """Keep a picture and return the URL people's screens load it from."""
         ...
 
 
@@ -92,7 +110,13 @@ class S3ImageStore:
         self.client = boto3.client("s3")
 
     def save(self, name: str, data: bytes) -> str:
-        self.client.put_object(Bucket=self.bucket, Key=f"diary/{name}", Body=data, ContentType="image/png")
+        self.client.put_object(
+            Bucket=self.bucket,
+            Key=f"diary/{name}",
+            Body=data,
+            ContentType=picture_type(data)[1],
+            CacheControl="public, max-age=31536000, immutable",
+        )
         return f"{self.base_url}/diary/{name}"
 
 

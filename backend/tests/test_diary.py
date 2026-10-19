@@ -67,7 +67,7 @@ def test_a_home_gets_its_diary_in_its_language_with_a_picture_and_a_report_line(
     assert tokyo.language == "ja"
     assert tokyo.text.startswith("今日は")
     assert tokyo.date == "2026-10-20"
-    assert tokyo.image_url == f"http://local/diary/{tokyo.id}.png"
+    assert tokyo.image_url == f"http://local/diary/{tokyo.id}.png"  # the fake paints a PNG
     assert (tmp_path / f"{tokyo.id}.png").read_bytes() == PNG
     assert "No text" in painter.prompts[0]
     report = store.latest_report("hh_tokyo")
@@ -131,3 +131,10 @@ def test_the_tick_lambda_draws_diaries_on_request(monkeypatch, tmp_path):
     monkeypatch.setattr(lambda_tick, "_store", None)
     result = lambda_tick.handler({"diary": ["hh_tokyo", TOWN]}, None)
     assert {d["scope"] for d in result["diaries"]} == {"hh_tokyo", TOWN}
+
+
+def test_pictures_are_named_by_their_type():
+    from overhearth.images import picture_type
+
+    assert picture_type(b"RIFF" + bytes(4) + b"WEBPVP8 ") == ("webp", "image/webp")
+    assert picture_type(PNG) == ("png", "image/png")

@@ -14,7 +14,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from overhearth import i18n
-from overhearth.images import ImageStore, Painter
+from overhearth.images import ImageStore, Painter, picture_type
 from overhearth.llm import Writer, parse_json
 from overhearth.models import Diary, Household, ReportItem, TownEvent
 from overhearth.store import Store
@@ -149,7 +149,8 @@ class Diarist:
             picture = self.painter.paint(PICTURE.format(scene=str(content.get("scene") or "")[:400]))
             if picture:
                 try:
-                    diary.image_url = self.images.save(f"{diary.id}.png", picture)
+                    extension, _ = picture_type(picture)
+                    diary.image_url = self.images.save(f"{diary.id}.{extension}", picture)
                 except Exception as error:
                     log.warning("could not keep the diary picture: %s", type(error).__name__)
         self.store.put_diary(diary)

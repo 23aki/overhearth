@@ -22,7 +22,7 @@ from overhearth.assistant import RateLimiter, TurnRequest, assistant_from_env, t
 from overhearth.delivery import Mailer, mailer_from_env
 from overhearth.diary import TOWN, Diarist
 from overhearth.engine import dialogue_from_env, run_tick
-from overhearth.images import LocalImageStore, image_store_from_env, painter_from_env
+from overhearth.images import LocalImageStore, image_store_from_env, painter_from_env, picture_type
 from overhearth.llm import writer_from_env
 from overhearth.mcp_server import build_server
 from overhearth.models import utcnow
@@ -149,10 +149,11 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
         async def diary_picture(request: Request) -> Response:
             """Diary pictures when running locally (deployed, CloudFront serves them from S3)."""
             name = request.path_params["name"]
-            data = images.read(name) if name.endswith(".png") and "/" not in name else None
+            data = images.read(name) if name.endswith((".png", ".webp", ".jpg")) and "/" not in name else None
             if data is None:
                 return PlainTextResponse("Not found", status_code=404)
-            return Response(data, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+            media = picture_type(data)[1]
+            return Response(data, media_type=media, headers={"Cache-Control": "public, max-age=86400"})
 
     assistant = assistant_from_env()
     limiter = RateLimiter()
