@@ -43,6 +43,8 @@ export interface TownState {
   viewer?: string;
   homes: Home[];
   events: TownEvent[];
+  /** Homes talking with their Alexa right now: {id: {kind, ago}}. */
+  active?: Record<string, { kind: string; ago: number }>;
 }
 
 export function latestTick(state: TownState): number {

@@ -10,6 +10,16 @@ import { type Art, BODIES, ROOFS, makeArt, pick } from "./art";
 import { type Layout, type Lot, type Point, TILE, buildLayout, lotOrder, seeded, walkPath } from "./layout";
 import type { Home, TownEvent, TownState } from "./types";
 
+export interface Activity {
+  /** talk, thanks, ask, share, news, mail, town */
+  kind: string;
+  /** Seconds since the last exchange. */
+  ago: number;
+}
+
+/** A home counts as talking for this long after its last exchange (matches the server). */
+const ACTIVE_MS = 90_000;
+
 export interface ReplayOptions {
   /** Which tick to play; the latest by default. */
   tick?: number;
@@ -29,6 +39,11 @@ export interface TownView {
   setNight(level: number | null): void;
   /** Show a small English translation under lines in other languages. */
   setSubtitles(on: boolean): void;
+  /**
+   * Homes talking with their Alexa right now ({id: {kind, ago}}): their avatars go home, a bubble
+   * shows over the house, and they come back out once the home has been quiet for a while.
+   */
+  setActivity(active: Record<string, Activity>): void;
   destroy(): void;
 }
 
@@ -81,6 +96,10 @@ class Avatar {
   x: number;
   y: number;
   busy = false;
+  /** In the house, talking with its person. */
+  inside = false;
+  private fade = 1;
+  private generation = 0;
   private frames: Texture[];
   private route: { x: number; y: number }[] = [];
   private arrive: (() => void) | null = null;
@@ -104,8 +123,17 @@ class Avatar {
     this.sync();
   }
 
+  get idle(): boolean {
+    return !this.busy && this.route.length === 0;
+  }
+
   walk(path: Point[], speed = this.speed): Promise<void> {
-    this.route = path.map(center);
+    return this.walkTo(path.map(center), speed);
+  }
+
+  /** Walk through points in pixels. */
+  walkTo(points: { x: number; y: number }[], speed = this.speed): Promise<void> {
+    this.route = [...points];
     this.speed = speed;
     return new Promise((resolve) => {
       this.arrive = resolve;
@@ -115,6 +143,9 @@ class Avatar {
 
   /** Back at the door at once, dropping any walk in progress. */
   goHome(): void {
+    this.generation++;
+    this.inside = false;
+    this.fade = 1;
     this.route = [];
     const at = center(this.door);
     this.x = at.x;
@@ -122,6 +153,29 @@ class Avatar {
     this.busy = false;
     this.finish();
     this.sync();
+  }
+
+  /** Walk up to the door and go in: the person is talking with Alexa. */
+  async goInside(): Promise<void> {
+    if (this.inside || !this.idle) return;
+    const generation = this.generation;
+    this.busy = true;
+    const front = center(this.door);
+    await this.walkTo([{ x: front.x, y: front.y - 2 }, { x: front.x, y: this.door.y * TILE - 2 }], WALK_SPEED * 0.8);
+    if (generation !== this.generation) return;
+    this.inside = true;
+    this.busy = false;
+  }
+
+  /** Step back out of the door once things have been quiet. */
+  async comeOut(): Promise<void> {
+    if (!this.inside || this.busy) return;
+    const generation = this.generation;
+    this.busy = true;
+    this.inside = false;
+    const front = center(this.door);
+    await this.walkTo([{ x: front.x, y: front.y - 2 }], WALK_SPEED * 0.8);
+    if (generation === this.generation) this.busy = false;
   }
 
   face(x: number): void {
@@ -157,6 +211,11 @@ class Avatar {
     } else {
       this.sprite.texture = this.frames[Math.floor(this.clock / 700) % 6 === 0 ? 1 : 0];
     }
+    // Fade into the house, or out of it.
+    const goal = this.inside ? 0 : 1;
+    this.fade += Math.sign(goal - this.fade) * Math.min(Math.abs(goal - this.fade), ms / 350);
+    this.sprite.alpha = this.fade;
+    this.label.alpha = this.fade;
     this.sync();
   }
 
@@ -211,6 +270,84 @@ interface HouseView {
   house: Sprite;
   windows: Sprite;
   aura: Sprite;
+  /** Window light without the talking pulse. */
+  baseWindows: number;
+  talk: TalkBubble;
+  talking: boolean;
+}
+
+const TALK_TEXT = new TextStyle({
+  fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+  fontSize: 7,
+  fontWeight: "700",
+  fill: "#1d2230",
+});
+
+/** "Kiri ♥ •••" over a house whose person is talking with Alexa. */
+class TalkBubble {
+  readonly node = new Container();
+  private readonly box = new Graphics();
+  private readonly name: Text;
+  private readonly dots: Text;
+  private readonly icon = new Sprite();
+  private kind = "";
+
+  constructor(
+    private readonly art: Art,
+    avatar: string,
+    private readonly x: number,
+    private readonly y: number,
+    layer: Container,
+  ) {
+    this.name = new Text({ text: avatar, style: TALK_TEXT, resolution: 4 });
+    this.dots = new Text({ text: "•••", style: TALK_TEXT, resolution: 4 });
+    this.icon.anchor.set(0, 0.5);
+    this.node.addChild(this.box, this.name, this.icon, this.dots);
+    this.node.visible = false;
+    layer.addChild(this.node);
+  }
+
+  show(kind: string, clock: number): void {
+    if (kind !== this.kind) {
+      this.kind = kind;
+      const icons: Record<string, Texture> = {
+        thanks: this.art.heart,
+        ask: this.art.bulb,
+        share: this.art.bulb,
+        mail: this.art.envelope,
+      };
+      const icon = icons[kind];
+      this.icon.texture = icon ?? this.art.heart;
+      this.icon.visible = Boolean(icon);
+      this.layout();
+    }
+    this.dots.text = "•••".slice(0, 1 + (Math.floor(clock / 350) % 3)).padEnd(3, " ");
+    this.node.visible = true;
+    this.node.position.set(this.x, Math.round(this.y + Math.sin(clock / 380) * 1.5));
+  }
+
+  hide(): void {
+    this.node.visible = false;
+  }
+
+  private layout(): void {
+    const iconWidth = this.icon.visible ? this.icon.width + 3 : 0;
+    const w = this.name.width + 4 + iconWidth + this.dots.width + 8;
+    const h = 13;
+    this.box
+      .clear()
+      .roundRect(-w / 2, -h - 4, w, h, 4)
+      .fill({ color: 0xffffff })
+      .stroke({ color: 0x34c6f4, width: 1 })
+      .poly([-3, -5, 3, -5, 0, 0])
+      .fill({ color: 0xffffff });
+    let x = -w / 2 + 4;
+    this.name.position.set(x, -h - 2);
+    x += this.name.width + 4;
+    this.icon.position.set(x, -h / 2 - 4);
+    x += iconWidth;
+    this.dots.position.set(x, -h - 2);
+  }
 }
 
 export async function createTownView(host: HTMLElement): Promise<TownView> {
@@ -254,6 +391,7 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
   let followed: string | null = null;
   let selectCallback: ((home: Home) => void) | null = null;
   let nightOverride: number | null = null;
+  const activity = new Map<string, { kind: string; until: number }>();
   let subtitles = true;
   let nightLevel = 0;
   let replayToken = 0;
@@ -340,7 +478,8 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
       windows.tint = 0xffd27a;
       windows.blendMode = "add";
       lights.addChild(windows);
-      houses.set(home.id, { home, lot, house, windows, aura });
+      const talk = new TalkBubble(art, home.avatar, lot.x * TILE + 24, lot.y * TILE + 2, bubbles);
+      houses.set(home.id, { home, lot, house, windows, aura, baseWindows: windows.alpha, talk, talking: false });
 
       const avatar = new Avatar(home, art, lot.front, objects, labels);
       avatar.sprite.on("pointertap", () => selectCallback?.(home));
@@ -358,6 +497,7 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
     for (const view of houses.values()) {
       const share = view.home.glow / max;
       view.windows.alpha = Math.min(1, 0.15 + nightLevel * 0.45 + share * 0.55);
+      view.baseWindows = view.windows.alpha;
       view.aura.alpha = share * (0.25 + nightLevel * 0.35);
     }
     for (const lamp of lamps) lamp.alpha = nightLevel * 0.9;
@@ -555,7 +695,9 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
       if (key !== homesKey) {
         homesKey = key;
         build();
+        if (next.active) view.setActivity(next.active);
       } else {
+        if (next.active) view.setActivity(next.active);
         for (const home of next.homes) {
           const h = houses.get(home.id);
           if (h) h.home = home;
@@ -623,6 +765,13 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
       subtitles = on;
     },
 
+    setActivity(active) {
+      activity.clear();
+      for (const [id, a] of Object.entries(active)) {
+        activity.set(id, { kind: a.kind, until: clock + Math.max(0, ACTIVE_MS - a.ago * 1000) });
+      }
+    },
+
     destroy() {
       replayToken++;
       resizeObserver.disconnect();
@@ -644,11 +793,30 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
     for (const avatar of avatars.values()) avatar.update(ms);
     for (const b of liveBubbles) b.update();
     fountain.texture = art.fountain[Math.floor(clock / 400) % 2];
+    // Homes talking with their Alexa: the avatar goes in, a bubble shows, the windows pulse.
+    for (const [id, view] of houses) {
+      const avatar = avatars.get(id);
+      const talking = activity.get(id);
+      const on = talking !== undefined && talking.until > clock;
+      if (avatar) {
+        if (on && !avatar.inside && avatar.idle) void avatar.goInside();
+        else if (!on && avatar.inside && !avatar.busy) void avatar.comeOut();
+      }
+      if (on && avatar?.inside) {
+        view.talking = true;
+        view.talk.show(talking.kind, clock);
+        view.windows.alpha = Math.min(1, view.baseWindows + 0.25 + Math.sin(clock / 300) * 0.2);
+      } else if (view.talking) {
+        view.talking = false;
+        view.talk.hide();
+        view.windows.alpha = view.baseWindows;
+      }
+    }
     // Ambient life: now and then an idle avatar takes a short walk along its road.
     strollTimer -= ms;
     if (strollTimer <= 0 && avatars.size) {
       strollTimer = 1500 + Math.random() * 2500;
-      const idle = [...avatars.values()].filter((a) => !a.busy);
+      const idle = [...avatars.values()].filter((a) => !a.busy && !a.inside);
       const pickOne = idle[Math.floor(Math.random() * idle.length)];
       if (pickOne && idle.length > avatars.size / 2) void stroll(pickOne);
     }

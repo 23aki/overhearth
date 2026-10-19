@@ -148,6 +148,11 @@ speech bubbles and hands over tips and questions. Thanks then fly home as hearts
 that receives them lights up. Windows glow with how often a home's know-how was thanked, and
 the town follows day and night.
 
+- **At home with their person**: while a home talks with its Alexa, its avatar walks to its door
+  and goes inside. A bubble over the house shows what the talk is about (a heart for thanks, a
+  bulb for a question, an envelope for email, dots otherwise) and the windows pulse. After about
+  90 seconds of quiet, the avatar comes back out. The server keeps only the kind and time of the
+  last exchange, never what was said (`GET /town/activity`, polled by the watch page).
 - **Watch page** (`/watch.html`): the whole town, live, without going through Alexa. New town
   time is replayed as soon as it happens. Pick a home to follow its avatar (or open
   `/watch.html?follow=hh_osaka`). It reads `GET /town`, which needs no household token.

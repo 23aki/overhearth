@@ -127,6 +127,18 @@ expandButton.addEventListener("click", async () => {
   await app.requestDisplayMode({ mode });
 });
 
+/** Keep up with who is talking with Alexa (the person here is), without replaying again. */
+async function refreshActivity(): Promise<void> {
+  try {
+    const result = await app.callServerTool({ name: "get_town_state", arguments: {} });
+    const next = result.structuredContent as unknown as TownState | undefined;
+    if (next?.active) town.setActivity(next.active);
+  } catch {
+    // The next refresh will try again.
+  }
+}
+setInterval(() => void refreshActivity(), 30_000);
+
 app.ontoolresult = () => void loadState();
 app.onhostcontextchanged = () => showDisplayMode();
 

@@ -10,6 +10,7 @@ model's JSON in `data`, so DynamoDB never has to understand the models:
 | REPORT              | household id               | the household's pending report          |
 | HEARD               | household id               | the report the household heard last     |
 | DELIVERY            | household id               | private delivery settings (email)       |
+| ACTIVITY            | household id               | when the home last talked with Alexa    |
 | TRANSLATION#<key>   | language                   | stored translation of some fields       |
 | CARRIED             | household id               | packet ids the avatar carries           |
 | EVENT               | tick#seq#event id          | a town event                            |
@@ -48,6 +49,7 @@ from overhearth.models import (
 from overhearth.store.common import (
     TOWN_VIEW_SCAN,
     build_town_state,
+    describe_activity,
     merge_report_items,
     rank_knowledge,
     token_hash,
@@ -224,6 +226,29 @@ class DynamoStore:
     def put_translation(self, key: str, language: str, fields: dict[str, str]) -> None:
         self._put(f"TRANSLATION#{key}", language, json.dumps(fields, ensure_ascii=False))
 
+    def mark_active(self, household_id: str, kind: str, at: datetime) -> None:
+        # One update, no read: plain talk only moves the time; a kind of talk also sets the kind.
+        values: dict[str, Any] = {":at": at.isoformat(), ":ttl": _epoch(at) + 3600}
+        expression = "SET #at = :at, #ttl = :ttl"
+        if kind != "talk":
+            expression += ", kind = :kind, kind_at = :at"
+            values[":kind"] = kind
+        self.table.update_item(
+            Key={"pk": "ACTIVITY", "sk": household_id},
+            UpdateExpression=expression,
+            ExpressionAttributeNames={"#at": "at", "#ttl": "ttl"},
+            ExpressionAttributeValues=values,
+        )
+
+    def activity(self, now: datetime) -> dict[str, dict[str, Any]]:
+        records = {}
+        for item in self._query("ACTIVITY"):
+            record: dict[str, Any] = {"at": datetime.fromisoformat(item["at"])}
+            if "kind" in item:
+                record.update(kind=item["kind"], kind_at=datetime.fromisoformat(item["kind_at"]))
+            records[item["sk"]] = record
+        return describe_activity(records, now)
+
     def get_delivery(self, household_id: str) -> DeliverySettings | None:
         data = self._get("DELIVERY", household_id)
         return DeliverySettings.model_validate_json(data) if data else None
@@ -276,12 +301,13 @@ class DynamoStore:
 
     def town_state(self) -> dict[str, Any]:
         packets = self.packets()
-        return build_town_state(
+        state = build_town_state(
             self.households(),
             {p.id: p.origin_household for p in packets if p.kind == "tip"},
             [p for p in packets if p.kind == "thanks"],
             self.town_events(limit=TOWN_VIEW_SCAN),
         )
+        return {**state, "active": self.activity(utcnow())}
 
     # seeding ------------------------------------------------------------------
 

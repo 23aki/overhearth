@@ -7,6 +7,8 @@ import { type Home, type TownState, latestTick } from "../townkit/types";
 import { BACKEND_URL, apiHeaders } from "./config";
 
 const POLL_MS = 15_000;
+/** Who is talking with Alexa changes by the second; this read is light. */
+const ACTIVITY_MS = 3_000;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const followSelect = $<HTMLSelectElement>("follow");
 const replayButton = $<HTMLButtonElement>("replay");
@@ -131,5 +133,15 @@ if (initial) {
     town.follow(initial);
   }
 }
+async function refreshActivity(): Promise<void> {
+  try {
+    const response = await fetch(`${BACKEND_URL}/town/activity`, { headers: apiHeaders() });
+    if (response.ok) town.setActivity(((await response.json()) as { active: Record<string, { kind: string; ago: number }> }).active);
+  } catch {
+    // The next poll will try again.
+  }
+}
+
 await refresh();
 setInterval(() => void refresh(), POLL_MS);
+setInterval(() => void refreshActivity(), ACTIVITY_MS);

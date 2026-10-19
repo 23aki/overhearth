@@ -90,19 +90,28 @@ class TownHome(BaseModel):
     glow: int = Field(description="How many times know-how from this home was thanked.")
 
 
+class ActiveHome(BaseModel):
+    kind: str = Field(description="What the home is talking with Alexa about: talk, thanks, ask, news, ...")
+    ago: int = Field(description="Seconds since the last exchange.")
+
+
 class TownState(BaseModel):
     viewer: str = Field(description="The household looking at the town.")
     homes: list[TownHome]
     events: list[TownEvent]
+    active: dict[str, ActiveHome] = Field(default_factory=dict)
 
 
-def _household(ctx: Context, store: Store) -> Household:
+def _household(ctx: Context, store: Store, activity: str | None = None) -> Household:
     headers = ctx.headers or {}
     auth = headers.get("authorization", "")
     scheme, _, token = auth.partition(" ")
     household = store.household_for_token(token) if scheme.lower() == "bearer" and token else None
     if household is None:
         raise ToolError("This Alexa account is not linked to Overhearth yet.")
+    if activity:
+        # The avatar goes home while its person talks with Alexa (only the kind is shown, never the content).
+        store.mark_active(household.id, activity, utcnow())
     return household
 
 
@@ -127,7 +136,7 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
         annotations=READ_ONLY,
     )
     def open_town(ctx: Context) -> TownResult:
-        _household(ctx, store)
+        _household(ctx, store, "town")
         state = store.town_state()
         return TownResult(
             speech="Here is the town.",
@@ -143,7 +152,7 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
         annotations=READ_ONLY,
     )
     def get_town_state(ctx: Context) -> TownState:
-        household = _household(ctx, store)
+        household = _household(ctx, store, "town")
         return TownState.model_validate({"viewer": household.id, **store.town_state()})
 
     apps.add_html_resource(TOWN_UI_URI, _town_html(), name="town", title="Overhearth town")
@@ -171,7 +180,7 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
         annotations=APPEND_ONLY,
     )
     def record_thanks(what_helped: str, ctx: Context, tip_id: str | None = None) -> ThanksResult:
-        household = _household(ctx, store)
+        household = _household(ctx, store, "thanks")
         handler = kinds.get("thanks")
         if tip_id and store.get_packet(tip_id) is None:
             tip_id = None
@@ -212,7 +221,7 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
         ctx: Context,
         confirmed: bool = False,
     ) -> ShareResult:
-        household = _household(ctx, store)
+        household = _household(ctx, store, "share")
         handler = kinds.get(kind)
         payload = handler.validate({"topic": topic, "text": text})
         preview = f"{payload['topic']}: {payload['text']}"
@@ -250,7 +259,7 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
         annotations=READ_ONLY,
     )
     def ask_town(question: str, ctx: Context) -> AskResult:
-        household = _household(ctx, store)
+        household = _household(ctx, store, "ask")
         answers = [_localized_entry(entry, household) for entry in store.search_knowledge(question, limit=3)]
         if not answers:
             return AskResult(
@@ -290,7 +299,7 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
         annotations=REPORT_ONCE,
     )
     def town_report(ctx: Context) -> ReportResult:
-        household = _household(ctx, store)
+        household = _household(ctx, store, "news")
         report = store.latest_report(household.id)
         if report is None or not report.items:
             return ReportResult(speech=f"It's been quiet in town. {household.avatar_name} is just looking around.")
@@ -317,7 +326,7 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
         annotations=SENDS_EMAIL,
     )
     def email_report(ctx: Context, confirmed: bool = False) -> EmailResult:
-        household = _household(ctx, store)
+        household = _household(ctx, store, "mail")
         report = store.latest_report(household.id)
         if report is None or not report.items:
             report = store.last_heard_report(household.id)
