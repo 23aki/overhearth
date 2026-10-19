@@ -179,15 +179,15 @@ cd backend && uv run python scripts/build_lambda.py
 cd ../web && npm ci && npm run build
 cd ../infra && npm ci
 npx cdk bootstrap --profile <deploy-profile>           # アカウントとリージョンごとに1回だけ
-npx cdk deploy --profile <deploy-profile> -c demoTick=true -c provisionedConcurrency=1
+npx cdk deploy --profile <deploy-profile>
 # 新しいテーブルにデモの町を入れる（TableName は cdk deploy の出力に出る）
 cd ../backend && AWS_PROFILE=<deploy-profile> uv run python -m overhearth.store.dynamo --table <TableName>
 ```
 
 | コンテキスト（`-c`） | 既定値 | 意味 |
 |---|---|---|
-| `demoTick` | `false` | 「Advance town time」ボタンを表示する。このとき `POST /dev/tick` は、連携済みの家のトークンが必要で、30秒に1回までしか動かない |
-| `provisionedConcurrency` | `0` | 待機させておく API のインスタンス数。`1` にすると最初の呼び出しも速いが、時間あたりの費用が少しかかる |
+| `demoTick` | `true` | 「Advance town time」ボタンを表示する。このとき `POST /dev/tick` は、連携済みの家のトークンが必要で、30秒に1回までしか動かない |
+| `provisionedConcurrency` | `1` | 待機させておく API のインスタンス数。`1` にすると最初の呼び出しも速い（コールドスタートは約4秒）が、時間あたりの費用が少しかかる。費用を抑えるなら `0` |
 | `lambdaAdapterLayerVersion` | `25` | 公開されている Lambda Web Adapter のレイヤーのバージョン |
 | `bedrockModel` | `global.anthropic.claude-haiku-5-5` | Alexa の層と分身の会話に使うモデル、または推論プロファイル |
 | `mailFrom` | 空（送信しない） | SES で検証済みの送信元。設定すると、連携した家にメールを送る |
