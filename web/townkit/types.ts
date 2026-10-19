@@ -35,7 +35,36 @@ export interface TownEvent {
   actors: string[];
   summary: string;
   refs: string[];
-  detail: { lines?: Line[]; items?: HandedItem[]; from?: string[]; to?: string; count?: number };
+  detail: {
+    lines?: Line[];
+    items?: HandedItem[];
+    from?: string[];
+    to?: string;
+    count?: number;
+    /** A "town" event: the landmark that was built, and the town level that built it. */
+    landmark?: string;
+    level?: number;
+  };
+}
+
+export interface Landmark {
+  /** bakery, playground, library, garden, clinic, cafe, bathhouse, stage, market, workshop, petpark, lanterns */
+  kind: string;
+  level: number;
+  at: string;
+}
+
+/** How far the town has grown with thanks, know-how and chats. */
+export interface Growth {
+  level: number;
+  xp: number;
+  /** XP at which the current level started. */
+  level_xp: number;
+  /** XP the next level needs; null at the top. */
+  next_xp: number | null;
+  landmarks: Landmark[];
+  /** The landmark kind the most thanked topic points to. */
+  leading?: string | null;
 }
 
 export interface TownState {
@@ -45,6 +74,7 @@ export interface TownState {
   events: TownEvent[];
   /** Homes talking with their Alexa right now: {id: {kind, ago}}. */
   active?: Record<string, { kind: string; ago: number }>;
+  growth?: Growth | null;
 }
 
 export function latestTick(state: TownState): number {

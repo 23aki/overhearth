@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 
-from overhearth import kinds
+from overhearth import growth, kinds
 from overhearth.delivery import Mailer, notify_thanks
 from overhearth.diary import Diarist
 from overhearth.engine.dialogue import AvatarBrief, DialogueGenerator, EncounterScript, Offer
@@ -36,6 +36,7 @@ class TickResult:
     resident_thanks: int = 0
     thanks_emails: int = 0
     diaries: int = 0
+    landmarks: int = 0
 
 
 def _offers(household: Household, store: Store) -> tuple[Offer, ...]:
@@ -170,6 +171,12 @@ def run_tick(
     for kind in kinds.all_kinds():
         _apply(kinds.get(kind).aggregate(ctx), store, lines)
 
+    # All that thanks and know-how grows the town: a level-up builds a landmark.
+    built, growth_lines = growth.grow(store, at, tick, chats=len(pairs))
+    store.add_town_events(built)
+    for household_id, items in growth_lines.items():
+        lines[household_id].extend(items)
+
     for household_id in set(lines) | set(met):
         store.append_report(
             household_id, lines.get(household_id, []), met=met.get(household_id, []), at=at, since=since
@@ -193,4 +200,5 @@ def run_tick(
         resident_thanks=resident_thanks,
         thanks_emails=emails,
         diaries=diaries,
+        landmarks=len(built),
     )

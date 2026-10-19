@@ -12,6 +12,7 @@ model's JSON in `data`, so DynamoDB never has to understand the models:
 | DELIVERY            | household id               | private delivery settings (email)       |
 | ACTIVITY            | household id               | when the home last talked with Alexa    |
 | DIARY#<scope>       | local date                 | a picture diary (a home's, or the town) |
+| GROWTH              | -                          | the town's level and landmarks          |
 | TRANSLATION#<key>   | language                   | stored translation of some fields       |
 | CARRIED             | household id               | packet ids the avatar carries           |
 | EVENT               | tick#seq#event id          | a town event                            |
@@ -35,6 +36,7 @@ from typing import Any
 import boto3
 from boto3.dynamodb.conditions import Attr, Key
 
+from overhearth import growth
 from overhearth.models import (
     AuthGrant,
     DeliverySettings,
@@ -262,6 +264,13 @@ class DynamoStore:
         items = self._query(f"DIARY#{scope}", newest_first=True, limit=1)
         return Diary.model_validate_json(items[0]["data"]) if items else None
 
+    def get_growth(self) -> dict[str, Any] | None:
+        data = self._get("GROWTH", consistent=True)
+        return json.loads(data) if data else None
+
+    def put_growth(self, record: dict[str, Any]) -> None:
+        self._put("GROWTH", _NONE, json.dumps(record))
+
     def get_delivery(self, household_id: str) -> DeliverySettings | None:
         data = self._get("DELIVERY", household_id)
         return DeliverySettings.model_validate_json(data) if data else None
@@ -320,7 +329,7 @@ class DynamoStore:
             [p for p in packets if p.kind == "thanks"],
             self.town_events(limit=TOWN_VIEW_SCAN),
         )
-        return {**state, "active": self.activity(utcnow())}
+        return {**state, "active": self.activity(utcnow()), "growth": growth.summary(packets, self.get_growth())}
 
     # seeding ------------------------------------------------------------------
 
@@ -353,7 +362,7 @@ class DynamoStore:
         return count
 
     def load_from(self, source: MemoryStore) -> None:
-        """Copy a seeded in-memory town (households, tokens, packets, reports, events, clock)."""
+        """Copy a seeded in-memory town (households, tokens, packets, reports, events, clock, growth)."""
         with self.table.batch_writer() as batch:
             for household in source.households():
                 batch.put_item(Item={"pk": "HOUSEHOLD", "sk": household.id, "data": household.model_dump_json()})
@@ -376,6 +385,8 @@ class DynamoStore:
                 batch.put_item(Item={"pk": "REPORT", "sk": report.household_id, "data": report.model_dump_json()})
             for household_id, carried in source._carried.items():
                 batch.put_item(Item={"pk": "CARRIED", "sk": household_id, "data": json.dumps(carried)})
+            if source._growth is not None:
+                batch.put_item(Item={"pk": "GROWTH", "sk": _NONE, "data": json.dumps(source._growth)})
             for (key, language), fields in source._translations.items():
                 batch.put_item(
                     Item={"pk": f"TRANSLATION#{key}", "sk": language, "data": json.dumps(fields, ensure_ascii=False)}

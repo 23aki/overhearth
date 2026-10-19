@@ -5,9 +5,9 @@
 import { Texture } from "pixi.js";
 import { seeded } from "./layout";
 
-type Paint = (ctx: CanvasRenderingContext2D) => void;
+export type Paint = (ctx: CanvasRenderingContext2D) => void;
 
-function texture(w: number, h: number, paint: Paint): Texture {
+export function texture(w: number, h: number, paint: Paint): Texture {
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
@@ -19,12 +19,12 @@ function texture(w: number, h: number, paint: Paint): Texture {
   return t;
 }
 
-function rect(ctx: CanvasRenderingContext2D, color: string, x: number, y: number, w = 1, h = 1): void {
+export function rect(ctx: CanvasRenderingContext2D, color: string, x: number, y: number, w = 1, h = 1): void {
   ctx.fillStyle = color;
   ctx.fillRect(x, y, w, h);
 }
 
-function speckle(ctx: CanvasRenderingContext2D, seed: string, colors: string[], count: number, w = 16, h = 16): void {
+export function speckle(ctx: CanvasRenderingContext2D, seed: string, colors: string[], count: number, w = 16, h = 16): void {
   const rand = seeded(seed);
   for (let i = 0; i < count; i++) rect(ctx, colors[Math.floor(rand() * colors.length)], Math.floor(rand() * w), Math.floor(rand() * h));
 }

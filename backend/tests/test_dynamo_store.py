@@ -42,6 +42,7 @@ def test_a_tick_gives_the_same_town_as_the_memory_store(dynamo):
         assert dynamo.latest_report(home).items == memory.latest_report(home).items
     assert [e.summary for e in dynamo.town_events(limit=30)] == [e.summary for e in memory.town_events(limit=30)]
     assert dynamo.town_state()["homes"] == memory.town_state()["homes"]
+    assert dynamo.town_state()["growth"] == memory.town_state()["growth"]
     question = "what can I cook in ten minutes"
     assert dynamo.search_knowledge(question) == memory.search_knowledge(question)
 
