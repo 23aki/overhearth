@@ -35,6 +35,14 @@ export interface OverhearthProps extends StackProps {
    */
   previewPassword: string;
   accessKey: string;
+  /**
+   * Which model provider the stack uses: "bedrock" (the default, for submission) or "anthropic"
+   * (the Claude API, while experimenting). The API key is passed on the command line and ends
+   * up in the Lambda environment; it is never stored in the repository.
+   */
+  llm: "bedrock" | "anthropic";
+  anthropicApiKey: string;
+  anthropicModel: string;
 }
 
 const PREVIEW_USER = "overhearth";
@@ -50,6 +58,9 @@ const PREVIEW_USER = "overhearth";
 export class OverhearthStack extends Stack {
   constructor(scope: Construct, id: string, props: OverhearthProps) {
     super(scope, id, props);
+    if (props.llm === "anthropic" && !props.anthropicApiKey) {
+      throw new Error("llm=anthropic needs -c anthropicApiKey=... (read it from backend/.env)");
+    }
 
     const table = new dynamodb.Table(this, "Town", {
       partitionKey: { name: "pk", type: dynamodb.AttributeType.STRING },
@@ -109,9 +120,15 @@ function handler(event) {
     const shared: Record<string, string> = {
       OVERHEARTH_STORE: "dynamo",
       OVERHEARTH_TABLE: table.tableName,
-      OVERHEARTH_DIALOGUE: "bedrock",
-      OVERHEARTH_ASSISTANT: "bedrock",
+      OVERHEARTH_DIALOGUE: props.llm,
+      OVERHEARTH_ASSISTANT: props.llm,
       OVERHEARTH_BEDROCK_MODEL: props.bedrockModel,
+      ...(props.llm === "anthropic"
+        ? {
+            ANTHROPIC_API_KEY: props.anthropicApiKey,
+            ...(props.anthropicModel ? { OVERHEARTH_ANTHROPIC_MODEL: props.anthropicModel } : {}),
+          }
+        : {}),
       ...(props.mailFrom ? { OVERHEARTH_MAILER: "ses", OVERHEARTH_MAIL_FROM: props.mailFrom } : {}),
     };
     const sendEmail = new iam.PolicyStatement({

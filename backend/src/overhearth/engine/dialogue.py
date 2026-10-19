@@ -15,6 +15,8 @@ from overhearth.i18n import language_name, normalize
 log = logging.getLogger(__name__)
 
 DEFAULT_MODEL_ID = "global.anthropic.claude-haiku-5-5"
+DIALOGUE_MAX_TOKENS = 2000
+"""Room for six lines, each with an English gloss when the avatar speaks another language."""
 DEFAULT_ANTHROPIC_MODEL_ID = "claude-haiku-5-5"
 """For development with the Claude API (OVERHEARTH_DIALOGUE=anthropic)."""
 
@@ -200,7 +202,7 @@ class BedrockDialogue(ModelDialogue):
             BedrockModel(
                 model_id=model_id or os.environ.get("OVERHEARTH_BEDROCK_MODEL", DEFAULT_MODEL_ID),
                 boto_session=session,
-                max_tokens=1000,
+                max_tokens=DIALOGUE_MAX_TOKENS,
                 streaming=False,
                 additional_request_fields={"thinking": {"type": "disabled"}},
             )
@@ -216,7 +218,7 @@ class ClaudeDialogue(ModelDialogue):
         super().__init__(
             AnthropicModel(
                 model_id=model_id or os.environ.get("OVERHEARTH_ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL_ID),
-                max_tokens=1000,
+                max_tokens=DIALOGUE_MAX_TOKENS,
                 params={"thinking": {"type": "disabled"}},
             )
         )
