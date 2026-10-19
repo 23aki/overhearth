@@ -145,3 +145,48 @@ def test_without_an_access_key_nothing_is_gated(monkeypatch):
     monkeypatch.delenv("OVERHEARTH_ACCESS_KEY", raising=False)
     with TestClient(create_app(seeded_store()), base_url="http://localhost:8000") as client:
         assert client.post("/mcp", json=INIT, headers=HEADERS).status_code == 200
+
+
+def test_the_watch_page_reads_the_whole_town_without_a_household():
+    store = seeded_store()
+    run_tick(store, TemplateDialogue(), at=utcnow())
+    with TestClient(create_app(store), base_url="http://localhost:8000") as client:
+        state = client.get("/town").json()
+    assert {h["id"] for h in state["homes"]} >= {"hh_tokyo", "hh_osaka"}
+    assert "viewer" not in state
+    encounters = [e for e in state["events"] if e["type"] == "encounter" and e["tick"] == 1]
+    assert encounters
+    assert all("items" in e["detail"] for e in encounters)
+    assert "@" not in str(state)
+
+
+def test_the_view_keeps_every_encounter_of_a_busy_tick():
+    from overhearth.town_seed import seeded_town
+
+    store = seeded_town()
+    result = run_tick(store, TemplateDialogue(), at=utcnow())
+    events = store.town_state()["events"]
+    assert sum(e["type"] == "encounter" for e in events) == result.encounters
+
+
+def test_a_thanks_flow_event_counts_this_ticks_thanks_only():
+    store = seeded_store()
+    start = utcnow()
+    tip = store.get_packet("pkt_egg_spinach")
+    for i, home in enumerate(["hh_tokyo", "hh_seattle"]):
+        store.add_packet(
+            Packet(
+                kind="thanks",
+                origin_household=home,
+                payload={"what_helped": "egg dinner", "tip_id": tip.id},
+                consented_at=start,
+                created_at=start - timedelta(minutes=50 if i == 0 else 5),
+            )
+        )
+    run_tick(store, TemplateDialogue(), at=start - timedelta(minutes=30))  # sees the first thanks
+    run_tick(store, TemplateDialogue(), at=start)  # sees the second
+    flows = [e for e in store.town_events(limit=500) if e.type == "thanks_flow" and e.tick == 2]
+    assert len(flows) == 1
+    assert flows[0].detail["from"] == ["hh_seattle"]
+    assert flows[0].detail["count"] == 1
+    assert "one home" in flows[0].summary

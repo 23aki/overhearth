@@ -134,3 +134,5 @@ button:disabled { opacity: 0.6; cursor: default; }
 .device.fullscreen .screen { grid-template-columns: 1fr; }
 .device.fullscreen .convo { display: none; }
 .email-body { white-space: pre-wrap; font: 14px/1.5 system-ui, sans-serif; color: #c9d1de; background: rgba(255, 255, 255, 0.03); border-radius: 10px; padding: 12px; margin: 8px 0; max-height: 320px; overflow-y: auto; }
+.watch-link { color: var(--accent); text-decoration: none; font-weight: 600; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); }
+.watch-link:hover { background: rgba(52, 198, 244, 0.1); }

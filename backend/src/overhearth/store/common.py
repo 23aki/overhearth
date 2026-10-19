@@ -9,8 +9,18 @@ from typing import Any
 from overhearth.models import Household, KnowledgeEntry, Packet, ReportItem, TownEvent
 from overhearth.text import MIN_SEARCH_RELEVANCE, answers, relevance
 
-TOWN_VIEW_EVENTS = 80
-"""How many recent town events the town view gets for its log and replay."""
+TOWN_VIEW_SCAN = 400
+"""How many recent events to look through for the town view."""
+TOWN_VIEW_TICKS = 2
+"""Every encounter and thanks flow of this many latest ticks goes to the view, for the replay."""
+TOWN_VIEW_EXCHANGES = 30
+"""Plus this many of the latest exchanges, for the log."""
+
+
+def select_view_events(events: list[TownEvent]) -> list[TownEvent]:
+    ticks = sorted({e.tick for e in events})[-TOWN_VIEW_TICKS:]
+    exchanges = {id(e) for e in [e for e in events if e.type == "exchange"][-TOWN_VIEW_EXCHANGES:]}
+    return [e for e in events if (e.type != "exchange" and e.tick in ticks) or id(e) in exchanges]
 
 
 def token_hash(token: str) -> str:
@@ -82,5 +92,5 @@ def build_town_state(
             }
             for h in households
         ],
-        "events": [e.model_dump(mode="json") for e in events],
+        "events": [e.model_dump(mode="json") for e in select_view_events(events)],
     }

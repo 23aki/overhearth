@@ -239,16 +239,19 @@ class Thanks(KindHandler):
                     ),
                 )
             )
+            # The town event shows this tick's thanks only; the report line above has the total.
+            senders = sorted({t.origin_household for t in thanks})
+            sent_from = "one home" if len(senders) == 1 else f"{len(senders)} homes"
             effects.append(
                 Event(
                     TownEvent(
                         tick=ctx.tick,
                         at=ctx.at,
                         type="thanks_flow",
-                        actors=[*homes, tip.origin_household],
-                        summary=f"Thanks from {places} found their way back to {ctx.label(tip.origin_household)}.",
+                        actors=[*senders, tip.origin_household],
+                        summary=f"Thanks from {sent_from} found their way back to {ctx.label(tip.origin_household)}.",
                         refs=[tip_id],
-                        detail={"from": homes, "to": tip.origin_household, "count": len(thanks)},
+                        detail={"from": senders, "to": tip.origin_household, "count": len(thanks)},
                     )
                 )
             )

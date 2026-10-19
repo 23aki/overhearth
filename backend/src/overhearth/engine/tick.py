@@ -106,6 +106,10 @@ def run_tick(
     for (a, b), (brief_a, _), script in zip(pairs, briefs, scripts, strict=True):
         met[a.id].append(b.avatar_name)
         met[b.id].append(a.avatar_name)
+        offered_by_a = {o.packet_id for o in brief_a.offers}
+        exchanged = [p for pid in script.exchanged if (p := store.get_packet(pid))]
+        exchanged.sort(key=lambda p: kinds.get(p.kind).encounter_order)
+        handed = [{"kind": p.kind, "from": a.id if p.id in offered_by_a else b.id} for p in exchanged]
         store.add_town_events(
             [
                 TownEvent(
@@ -115,13 +119,10 @@ def run_tick(
                     actors=[a.id, b.id],
                     summary=script.summary,
                     refs=script.exchanged,
-                    detail={"lines": [line.model_dump() for line in script.lines]},
+                    detail={"lines": [line.model_dump() for line in script.lines], "items": handed},
                 )
             ]
         )
-        offered_by_a = {o.packet_id for o in brief_a.offers}
-        exchanged = [p for pid in script.exchanged if (p := store.get_packet(pid))]
-        exchanged.sort(key=lambda p: kinds.get(p.kind).encounter_order)
         for packet in exchanged:
             packet_id = packet.id
             carrier, listener = (a, b) if packet_id in offered_by_a else (b, a)

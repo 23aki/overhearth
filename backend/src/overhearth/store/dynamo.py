@@ -45,7 +45,7 @@ from overhearth.models import (
     utcnow,
 )
 from overhearth.store.common import (
-    TOWN_VIEW_EVENTS,
+    TOWN_VIEW_SCAN,
     build_town_state,
     merge_report_items,
     rank_knowledge,
@@ -272,7 +272,7 @@ class DynamoStore:
             self.households(),
             {p.id: p.origin_household for p in packets if p.kind == "tip"},
             [p for p in packets if p.kind == "thanks"],
-            self.town_events(limit=TOWN_VIEW_EVENTS),
+            self.town_events(limit=TOWN_VIEW_SCAN),
         )
 
     # seeding ------------------------------------------------------------------
