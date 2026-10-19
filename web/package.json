@@ -6,9 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p town",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p town && tsc --noEmit -p diary",
     "preview": "vite preview",
-    "build:town": "vite build --config vite.town.config.ts"
+    "build:town": "vite build --config vite.town.config.ts",
+    "build:diary": "vite build --config vite.diary.config.ts",
+    "build:views": "npm run build:town && npm run build:diary"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "^2.3.1",

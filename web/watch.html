@@ -18,12 +18,20 @@
       <button id="replay" type="button">Replay latest</button>
       <button id="night" type="button" class="ghost" title="Day, night, or follow your clock">Clock</button>
       <button id="subtitles" type="button" class="ghost" title="English translation under lines in other languages">Subtitles: on</button>
+      <button id="diary" type="button" class="ghost" title="The town's picture diary of the day">Town diary</button>
       <span id="status" class="status" aria-live="polite"></span>
     </header>
     <main class="game">
       <div id="town" class="town" aria-label="The Overhearth town"></div>
       <p id="caption" class="caption" aria-live="polite"></p>
       <aside id="card" class="card" hidden></aside>
+      <dialog id="diary-dialog" class="diary">
+        <form method="dialog"><button class="close" aria-label="Close">×</button></form>
+        <p id="diary-date" class="diary-date"></p>
+        <h2 id="diary-title"></h2>
+        <img id="diary-picture" alt="The town's picture of the day" hidden />
+        <p id="diary-text" class="diary-text"></p>
+      </dialog>
     </main>
     <footer class="foot">
       Every home in this town is simulated. Avatars only carry what a person agreed to share.

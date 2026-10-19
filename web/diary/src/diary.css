@@ -1,0 +1,29 @@
+:root { color-scheme: light; --ink: #3b3246; --muted: #8a8094; --line: #c9dcef; --paper: #fffdf6; --accent: #34c6f4; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: #2a2433; font: 16px/1.6 "Hiragino Maru Gothic ProN", "Yu Gothic UI", "Segoe UI", system-ui, sans-serif; color: var(--ink); }
+.desk { min-height: 100%; padding: 14px; display: flex; flex-direction: column; gap: 10px; align-items: center; }
+.tabs { display: flex; gap: 6px; }
+.tabs button { font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.2); background: transparent; color: #f2eefa; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--accent); color: #04121a; border-color: var(--accent); font-weight: 700; }
+.page {
+  width: min(720px, 100%);
+  background-color: var(--paper);
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 31px, var(--line) 31px, var(--line) 32px);
+  border-radius: 6px;
+  padding: 18px 26px 26px 54px;
+  position: relative;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.page::before { content: ""; position: absolute; left: 38px; top: 0; bottom: 0; width: 2px; background: #f3b7b7; }
+.head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; min-height: 32px; }
+.date { color: var(--muted); font-size: 14px; }
+.title { margin: 0; font-size: 22px; line-height: 32px; }
+.frame { position: relative; margin: 10px 0 14px; padding: 8px; background: #fff; border: 1px solid #e7e0d0; transform: rotate(-0.6deg); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12); }
+.frame img { display: block; width: 100%; height: auto; image-rendering: auto; border-radius: 2px; }
+.tape { position: absolute; top: -10px; width: 70px; height: 20px; background: rgba(255, 214, 120, 0.7); }
+.tape-left { left: 18px; transform: rotate(-6deg); }
+.tape-right { right: 18px; transform: rotate(5deg); }
+.text { margin: 0; font-size: 18px; line-height: 32px; white-space: pre-wrap; }
+.empty { color: var(--muted); margin: 24px 0; }
+.foot { color: #a79fb4; font-size: 11px; }

@@ -103,6 +103,27 @@ followSelect.addEventListener("change", () => {
   else card.hidden = true;
 });
 replayButton.addEventListener("click", () => void play());
+
+interface Diary {
+  date: string;
+  title: string;
+  text: string;
+  language: string;
+  image_url: string | null;
+}
+const diaryButton = $<HTMLButtonElement>("diary");
+const diaryDialog = $<HTMLDialogElement>("diary-dialog");
+diaryButton.addEventListener("click", async () => {
+  const response = await fetch(`${BACKEND_URL}/town/diary`, { headers: apiHeaders() }).catch(() => null);
+  const diary = response?.ok ? ((await response.json()) as { diary: Diary | null }).diary : null;
+  $<HTMLParagraphElement>("diary-date").textContent = diary?.date ?? "";
+  $<HTMLHeadingElement>("diary-title").textContent = diary?.title ?? "No diary yet";
+  $<HTMLParagraphElement>("diary-text").textContent = diary?.text ?? "The town writes its picture diary every evening.";
+  const picture = $<HTMLImageElement>("diary-picture");
+  picture.hidden = !diary?.image_url;
+  if (diary?.image_url) picture.src = diary.image_url;
+  diaryDialog.showModal();
+});
 let subtitles = true;
 subtitlesButton.addEventListener("click", () => {
   subtitles = !subtitles;

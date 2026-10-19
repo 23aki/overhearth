@@ -15,6 +15,7 @@ from datetime import datetime
 
 from overhearth import kinds
 from overhearth.delivery import Mailer, notify_thanks
+from overhearth.diary import Diarist
 from overhearth.engine.dialogue import AvatarBrief, DialogueGenerator, EncounterScript, Offer
 from overhearth.engine.residents import simulate_residents
 from overhearth.kinds import Carry, Effect, Event, ReportLine, TickContext
@@ -34,6 +35,7 @@ class TickResult:
     report_lines: int
     resident_thanks: int = 0
     thanks_emails: int = 0
+    diaries: int = 0
 
 
 def _offers(household: Household, store: Store) -> tuple[Offer, ...]:
@@ -115,6 +117,7 @@ def run_tick(
     max_workers: int = 8,
     mailer: Mailer | None = None,
     translator: Translator | None = None,
+    diarist: Diarist | None = None,
 ) -> TickResult:
     at = at or utcnow()
     rng = rng or random.Random()
@@ -175,6 +178,9 @@ def run_tick(
     if translator is not None:
         pretranslate(store, localizer)
 
+    # In the evening, avatars (and the town) write the day's picture diary.
+    diaries = len(diarist.write_due(at)) if diarist is not None else 0
+
     thanked = {hid for hid, items in lines.items() if any(item.kind == "thanks_return" for item in items)}
     emails = notify_thanks(store, mailer, thanked, at) if mailer is not None else 0
 
@@ -186,4 +192,5 @@ def run_tick(
         report_lines=sum(len(v) for v in lines.values()),
         resident_thanks=resident_thanks,
         thanks_emails=emails,
+        diaries=diaries,
     )

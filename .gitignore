@@ -31,3 +31,6 @@ Thumbs.db
 CLAUDE.md
 CLAUDE.local.md
 .claude/
+
+# Diary pictures drawn while running locally
+.diary/

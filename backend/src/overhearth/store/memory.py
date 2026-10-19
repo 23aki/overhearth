@@ -8,6 +8,7 @@ from typing import Any
 from overhearth.models import (
     AuthGrant,
     DeliverySettings,
+    Diary,
     Household,
     IssuedToken,
     KnowledgeEntry,
@@ -40,6 +41,7 @@ class MemoryStore:
         self._delivery: dict[str, DeliverySettings] = {}
         self._translations: dict[tuple[str, str], dict[str, str]] = {}
         self._activity: dict[str, dict[str, Any]] = {}
+        self._diaries: dict[str, dict[str, Diary]] = {}
         self._packets: dict[str, Packet] = {}
         self._reports: dict[str, Report] = {}
         self._events: list[TownEvent] = []
@@ -170,6 +172,16 @@ class MemoryStore:
 
     def activity(self, now: datetime) -> dict[str, dict[str, Any]]:
         return describe_activity(self._activity, now)
+
+    def put_diary(self, diary: Diary) -> None:
+        self._diaries.setdefault(diary.scope, {})[diary.date] = diary
+
+    def get_diary(self, scope: str, date: str) -> Diary | None:
+        return self._diaries.get(scope, {}).get(date)
+
+    def latest_diary(self, scope: str) -> Diary | None:
+        days = self._diaries.get(scope, {})
+        return days[max(days)] if days else None
 
     def get_delivery(self, household_id: str) -> DeliverySettings | None:
         return self._delivery.get(household_id)

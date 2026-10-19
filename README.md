@@ -158,6 +158,22 @@ the town follows day and night.
   `/watch.html?follow=hh_osaka`). It reads `GET /town`, which needs no household token.
 - **Inside Alexa**: the MCP App below uses the same renderer and follows your own avatar.
 
+### The picture diary
+
+Every evening (the home's local time, from 18:00), each demo or linked home's avatar writes a
+picture diary of its day in town, in the home's language, and the town writes one of its own.
+The text comes from the same model the avatars talk with (only what happened in town that day);
+the picture from an image model (`gpt-image-2.5` by default, `OPENAI_API_KEY`).
+
+- The home's next report says "I drew today's picture diary. Want to see it?", and the
+  `town_diary` tool shows it on the screen as an MCP App (`ui://overhearth/diary.html`): a
+  notebook page with the date, the picture and the text, with a tab for the town's diary.
+- The watch page shows the town's diary ("Town diary").
+- For demos, "Draw diary" on the Echo Show page draws today's diary now (`POST /dev/diary`; on
+  AWS it runs asynchronously in the tick function, since a picture takes a while).
+- Pictures are files served by the backend locally, and an S3 bucket behind CloudFront `/diary/`
+  when deployed. Without an image key, diaries are text only.
+
 ### The town view (MCP App)
 
 Say "show me the town". `open_town` points at the `ui://overhearth/town.html` resource, and the page
@@ -268,6 +284,7 @@ cd ../backend && AWS_PROFILE=<deploy-profile> uv run python -m overhearth.store.
 | `bedrockModel` | `global.anthropic.claude-haiku-5-5` | Model or inference profile for the Alexa layer and the avatars |
 | `mailFrom` | empty (dry run) | Verified SES sender. Set it to send emails to linked homes |
 | `llm` | `bedrock` | `anthropic` to use the Claude API instead of Bedrock while experimenting (pass `anthropicApiKey`, e.g. read from `backend/.env`; the key goes into the Lambda environment). Optional `anthropicModel` |
+| `openaiApiKey` | empty (text-only diaries) | OpenAI key for diary pictures (goes into the Lambda environment). Optional `imageModel` |
 | `previewPassword` | empty (open) | While in development: Basic authentication on the web client (user `overhearth`) |
 | `accessKey` | empty (open) | While in development: the API (`/mcp`, `/assistant/turn`, `/token`, `/dev/tick`) needs this key in an `X-Overhearth-Access` header. The web client gets it from `config.js`, behind the Basic authentication |
 
