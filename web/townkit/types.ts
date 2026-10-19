@@ -44,6 +44,8 @@ export interface TownEvent {
     /** A "town" event: the landmark that was built, and the town level that built it. */
     landmark?: string;
     level?: number;
+    /** The landmark grew bigger rather than being built. */
+    upgrade?: boolean;
   };
 }
 
@@ -63,6 +65,8 @@ export interface Growth {
   /** XP the next level needs; null at the top. */
   next_xp: number | null;
   landmarks: Landmark[];
+  /** Landmarks made bigger, once every landmark stands. */
+  upgrades?: Landmark[];
   /** The landmark kind the most thanked topic points to. */
   leading?: string | null;
 }

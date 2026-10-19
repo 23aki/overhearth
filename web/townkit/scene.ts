@@ -562,15 +562,16 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
   }
 
   /** Landmarks on lots (in build order) and the festival lanterns, if the town has them. */
-  function builtPlaces(growth: Growth | null | undefined): { onLots: string[]; lanterns: boolean } {
+  function builtPlaces(growth: Growth | null | undefined): { onLots: string[]; lanterns: boolean; bigger: Set<string> } {
     const kinds = (growth?.landmarks ?? []).map((l) => l.kind);
-    return { onLots: kinds.filter((k) => k !== "lanterns"), lanterns: kinds.includes("lanterns") };
+    const bigger = new Set((growth?.upgrades ?? []).map((l) => l.kind).filter((k) => !pending.has(`${k}+`)));
+    return { onLots: kinds.filter((k) => k !== "lanterns"), lanterns: kinds.includes("lanterns"), bigger };
   }
 
   function drawPlaces(): void {
     if (!layout) return;
-    const { onLots, lanterns } = builtPlaces(state.growth);
-    const key = `${onLots.join(",")}|${lanterns}|${[...pending].join(",")}`;
+    const { onLots, lanterns, bigger } = builtPlaces(state.growth);
+    const key = `${onLots.join(",")}|${lanterns}|${[...bigger].join(",")}|${[...pending].join(",")}`;
     if (key === growthKey) return;
     growthKey = key;
     for (const node of placeNodes) node.destroy({ children: true });
@@ -580,7 +581,11 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
       const kind = onLots[i];
       const waiting = kind === undefined || pending.has(kind);
       const sprite = new Sprite(
-        kind && !waiting ? places.landmark(kind) : kind || i === onLots.length ? places.scaffold : places.site,
+        kind && !waiting
+          ? places.landmark(kind, bigger.has(kind))
+          : kind || i === onLots.length
+            ? places.scaffold
+            : places.site,
       );
       sprite.position.set(lot.x * TILE, lot.y * TILE);
       sprite.zIndex = (lot.y + 3) * TILE;
@@ -588,7 +593,8 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
       placeNodes.push(sprite);
       if (kind) siteSprites.set(kind, sprite);
       if (kind && !waiting) {
-        const label = new Text({ text: landmarkName(kind), style: LABEL, resolution: 4 });
+        const name = bigger.has(kind) ? `${landmarkName(kind)} ★` : landmarkName(kind);
+        const label = new Text({ text: name, style: LABEL, resolution: 4 });
         label.anchor.set(0.5, 0);
         label.position.set(lot.x * TILE + 24, lot.y * TILE + 46);
         labels.addChild(label);
@@ -620,10 +626,12 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
     const growth = state.growth;
     if (!growth) return;
     const count = growth.landmarks.length;
+    const grown = growth.upgrades?.length ?? 0;
     const title = new Text({ text: `Town Lv ${growth.level}`, style: HUD_TEXT, resolution: 2 });
     const builtText = count === 1 ? "1 place" : `${count} places`;
     const favorite = growth.leading && TOPICS[growth.leading] ? ` · loves ${TOPICS[growth.leading]}` : "";
-    const sub = new Text({ text: `${builtText} built with thanks${favorite}`, style: HUD_SMALL, resolution: 2 });
+    const grownText = grown ? ` · ${grown} grown bigger` : "";
+    const sub = new Text({ text: `${builtText} built with thanks${grownText}${favorite}`, style: HUD_SMALL, resolution: 2 });
     const barWidth = Math.max(150, sub.width);
     const share =
       growth.next_xp === null ? 1 : (growth.xp - growth.level_xp) / Math.max(1, growth.next_xp - growth.level_xp);
@@ -681,11 +689,12 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
     onCaption?.(event.summary);
     await sleep(1100);
     if (token !== replayToken) return;
-    pending.delete(kind);
-    revealed.add(kind);
+    const key = event.detail.upgrade ? `${kind}+` : kind;
+    pending.delete(key);
+    revealed.add(key);
     drawPlaces();
     sparkles(at.x, at.y - 6);
-    burst(at.x, at.y - 10, `NEW! ${landmarkName(kind)}`);
+    burst(at.x, at.y - 10, `${event.detail.upgrade ? "BIGGER!" : "NEW!"} ${landmarkName(kind)}`);
     await sleep(3600);
   }
 
@@ -866,7 +875,8 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
       const latest = latestTick(next);
       for (const e of next.events) {
         const kind = e.detail.landmark;
-        if (e.type === "town" && e.tick === latest && kind && !revealed.has(kind)) pending.add(kind);
+        const key = e.detail.upgrade ? `${kind}+` : kind;
+        if (e.type === "town" && e.tick === latest && key && !revealed.has(key)) pending.add(key);
       }
       if (key !== homesKey) {
         homesKey = key;

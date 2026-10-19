@@ -120,6 +120,9 @@ class TownGrowth(BaseModel):
     level_xp: int = Field(description="Experience at which the current level started.")
     next_xp: int | None = Field(description="Experience the next level needs; null at the top level.")
     landmarks: list[Landmark] = Field(default_factory=list)
+    upgrades: list[Landmark] = Field(
+        default_factory=list, description="Landmarks made bigger once every landmark stands (the level that did it)."
+    )
     leading: str | None = Field(default=None, description="The landmark kind the most thanked topic points to.")
 
 

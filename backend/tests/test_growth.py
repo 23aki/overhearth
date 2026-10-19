@@ -94,16 +94,28 @@ def test_an_existing_town_starts_quietly_with_what_its_history_earned():
     assert len({lm["kind"] for lm in record["landmarks"]}) == len(record["landmarks"])
 
 
-def test_every_landmark_is_built_once_and_the_lanterns_come_last():
+def test_every_landmark_is_built_once_then_each_grows_bigger_most_thanked_first():
     store = MemoryStore()
-    _home(store, "hh_a")
+    _home(store, "hh_a", "ja")
     store.put_growth({"level": 1, "landmarks": [], "chats": 0})
+    kids = _tip(store, "hh_a", "Rainy-day games for kids", ["kids", "rainy"])
+    _thank(store, "hh_a", kids, 5)
     events, lines = growth.grow(store, NOW, 1, chats=growth.LEVELS[-1])
-    kinds = [e.detail["landmark"] for e in events]
-    assert sorted(kinds) == sorted(growth.LANDMARKS)
-    assert kinds[-1] == "lanterns"
-    assert lines["hh_a"][-1].text.startswith("Festival lanterns")
+    built = [e.detail["landmark"] for e in events if not e.detail.get("upgrade")]
+    bigger = [e.detail["landmark"] for e in events if e.detail.get("upgrade")]
+    assert sorted(built) == sorted(growth.LANDMARKS)
+    assert built[-1] == "lanterns"
+    assert sorted(bigger) == sorted(k for k in growth.LANDMARKS if k != "lanterns")
+    assert bigger[0] == "playground"  # the most thanked topic grows first
+    assert len(events) == len(growth.LEVELS) - 1
+    texts = [item.text for item in lines["hh_a"]]
+    assert "公園の遊び場が大きくなりました！子育てのコツへの感謝が続いています。" in texts
+    assert lines["hh_a"][-1].key.endswith(":bigger")
+    record = store.get_growth()
+    assert len(record["upgrades"]) == len(bigger)
     assert growth.grow(store, NOW, 2, chats=1000) == ([], {})
+    state = growth.summary(store.packets(), store.get_growth())
+    assert state["next_xp"] is None and len(state["upgrades"]) == 11
 
 
 def test_announcements_read_well_in_every_language():
@@ -113,6 +125,11 @@ def test_announcements_read_well_in_every_language():
             assert "{" not in text and text[0] == text[0].upper()
     assert growth.announce("bakery", "ko").startswith("동네에 빵집이 ")
     assert growth.announce("playground", "ko").startswith("동네에 놀이터가 ")
+    for language in growth.BUILT:
+        for kind in growth.THE:
+            text = growth.announce(kind, language, upgrade=True)
+            assert "{" not in text
+    assert growth.announce("library", "es", upgrade=True).startswith("¡La biblioteca creció!")
 
 
 def test_ticks_grow_the_town_and_tell_the_homes():
@@ -136,7 +153,7 @@ def test_ticks_grow_the_town_and_tell_the_homes():
 def test_alexa_tells_about_new_landmarks_and_the_town_view_shows_them(server_url, store):
     store.put_growth({"level": 1, "landmarks": [], "chats": 0})
     run_tick(store, TemplateDialogue(), at=datetime.now(UTC), rng=random.Random(2))
-    store.put_growth({"level": 1, "landmarks": [], "chats": 10_000})
+    store.put_growth({"level": 1, "landmarks": [], "chats": growth.LEVELS[-1]})
     run_tick(store, TemplateDialogue(), at=datetime.now(UTC) + timedelta(minutes=30), rng=random.Random(3))
     client = RawMcpClient(server_url, token="demo-tokyo")
     client.initialize()
@@ -145,3 +162,4 @@ def test_alexa_tells_about_new_landmarks_and_the_town_view_shows_them(server_url
     town = client.call_tool("get_town_state")[0]["structuredContent"]
     assert town["growth"]["level"] == len(growth.LEVELS)
     assert len(town["growth"]["landmarks"]) == len(growth.LANDMARKS)
+    assert len(town["growth"]["upgrades"]) == len(growth.LANDMARKS) - 1

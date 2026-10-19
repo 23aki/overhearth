@@ -1,7 +1,7 @@
 /**
  * The places a town builds as it grows (see backend growth.py): one 48x48 sprite each, the
- * same size as a house, plus the lot waiting for one, the building site and the festival
- * lanterns that finish the town.
+ * same size as a house, and a bigger second stage once the town makes it grow; plus the lot
+ * waiting for one, the building site and the festival lanterns.
  */
 import type { Texture } from "pixi.js";
 import { type Paint, rect, speckle, texture } from "./art";
@@ -232,6 +232,158 @@ const PAINT: Record<string, Paint> = {
   },
 };
 
+/** What each landmark adds when the town makes it bigger, painted over the first stage. */
+const BIGGER: Record<string, Paint> = {
+  bakery: (ctx) => {
+    rect(ctx, "#7a4f2c", 35, 4, 4, 9); // chimney with warm smoke
+    for (const [x, y] of [[36, 1], [38, 0], [34, 0]]) rect(ctx, "rgba(240,240,240,0.85)", x, y, 2, 2);
+    rect(ctx, "#f2c14e", 23, 8, 2, 2); // gold star on the sign
+    rect(ctx, "#f2c14e", 22, 9, 4, 1);
+    rect(ctx, "#5b8f3a", 8, 41, 16, 2); // flower box
+    for (let x = 9; x < 24; x += 3) rect(ctx, x % 2 ? "#e86f8a" : "#f4f1e8", x, 40);
+    rect(ctx, "#8a5a33", 38, 40, 9, 2); // bench with a bread basket
+    rect(ctx, "#5c3b22", 39, 42, 1, 3);
+    rect(ctx, "#5c3b22", 45, 42, 1, 3);
+    rect(ctx, "#d9a35b", 41, 38, 4, 2);
+  },
+  library: (ctx) => {
+    rect(ctx, "#cfc8ba", 19, 0, 10, 13); // clock tower
+    rect(ctx, "#a39b8c", 18, 0, 12, 1);
+    rect(ctx, "#f4f1e8", 21, 3, 6, 6);
+    rect(ctx, "#3d3550", 23, 4, 1, 3);
+    rect(ctx, "#3d3550", 24, 6, 2, 1);
+    for (const x of [10, 35]) {
+      rect(ctx, "#c4553e", x, 24, 3, 9); // banners
+      rect(ctx, "#f2c14e", x + 1, 26);
+    }
+    rect(ctx, "#8a5a33", 40, 38, 7, 4); // book cart
+    picture(ctx, ["rbgr", "rbgy"], { r: "#c4553e", b: "#3f6fb5", g: "#5b8f3a", y: "#f2c14e" }, 41, 36);
+    rect(ctx, "#3b3f4a", 41, 42, 1, 1);
+    rect(ctx, "#3b3f4a", 45, 42, 1, 1);
+  },
+  garden: (ctx) => {
+    rect(ctx, "#e9f6ff", 30, 12, 13, 15); // greenhouse
+    rect(ctx, "#9fd3f0", 31, 15, 11, 11);
+    for (const x of [30, 34, 38, 42]) rect(ctx, "#f4f4f0", x, 12, 1, 15);
+    rect(ctx, "#f4f4f0", 30, 15, 13, 1);
+    for (let i = 0; i < 4; i++) rect(ctx, "#f4f4f0", 32 + i * 2, 11 - i, 9 - i * 4 > 0 ? 9 - i * 4 : 1, 1);
+    rect(ctx, "#5b8f3a", 32, 22, 2, 3);
+    rect(ctx, "#5b8f3a", 37, 21, 2, 4);
+    rect(ctx, "#e86f8a", 37, 20);
+    for (let x = 4; x < 45; x += 3) rect(ctx, ["#e86f8a", "#f2c14e", "#c3a6f2"][x % 3], x, 8); // hedge in bloom
+    rect(ctx, "#bfe3ff", 12, 30, 2, 2); // fountain in the pond
+    rect(ctx, "#9e978b", 12, 32, 2, 3);
+  },
+  clinic: (ctx) => {
+    rect(ctx, "#f4f4f0", 5, 5, 38, 10); // second floor
+    rect(ctx, "#5d8fd0", 3, 2, 42, 4);
+    rect(ctx, "#3f6fb5", 3, 5, 42, 1);
+    for (const x of [8, 32]) {
+      rect(ctx, "#5c3b22", x - 1, 7, 8, 6);
+      rect(ctx, "#9fd3f0", x, 8, 6, 4);
+    }
+    rect(ctx, "#ffffff", 19, 6, 10, 9);
+    rect(ctx, "#d6453d", 22, 7, 4, 7);
+    rect(ctx, "#d6453d", 20, 9, 8, 3);
+    rect(ctx, "#5b8f3a", 14, 40, 4, 5); // planters by the door
+    rect(ctx, "#5b8f3a", 30, 40, 4, 5);
+    rect(ctx, "#a6d96a", 15, 39, 2, 2);
+    rect(ctx, "#a6d96a", 31, 39, 2, 2);
+  },
+  playground: (ctx) => {
+    for (let x = 4; x < 44; x += 4) {
+      rect(ctx, ["#e8504b", "#f2c14e", "#3f6fb5", "#5b8f3a"][(x / 4) % 4], x, 11, 3, 2); // bunting
+      rect(ctx, ["#e8504b", "#f2c14e", "#3f6fb5", "#5b8f3a"][(x / 4) % 4], x + 1, 13);
+    }
+    rect(ctx, "#9aa3b5", 7, 38, 12, 2); // merry-go-round
+    rect(ctx, "#e8504b", 8, 36, 4, 2);
+    rect(ctx, "#f2c14e", 12, 36, 4, 2);
+    rect(ctx, "#3f6fb5", 15, 36, 3, 2);
+    rect(ctx, "#9aa3b5", 12, 33, 1, 3);
+    rect(ctx, "#8a5a33", 30, 40, 13, 2); // seesaw
+    rect(ctx, "#5c3b22", 36, 42, 1, 2);
+    rect(ctx, "#e8504b", 30, 39, 2, 1);
+    rect(ctx, "#3f6fb5", 41, 39, 2, 1);
+  },
+  cafe: (ctx) => {
+    for (let x = 10; x < 44; x += 2) rect(ctx, "#3b3246", x, 22 + (x % 4 === 0 ? 1 : 0)); // string lights
+    for (let x = 11; x < 44; x += 5) rect(ctx, "#fbe7a1", x, 23, 1, 2);
+    rect(ctx, "#2a2238", 40, 35, 6, 8); // chalkboard
+    rect(ctx, "#8a5a33", 39, 34, 8, 1);
+    rect(ctx, "#f4f1e8", 41, 37, 4, 1);
+    rect(ctx, "#f4f1e8", 41, 39, 3, 1);
+    rect(ctx, "#5b8f3a", 12, 41, 3, 4); // pots
+    rect(ctx, "#e86f8a", 12, 40, 3, 1);
+    rect(ctx, "#2f8f8a", 0, 37, 10, 2); // a second umbrella
+    rect(ctx, "#f4f1e8", 4, 37, 2, 2);
+  },
+  bathhouse: (ctx) => {
+    for (const [x, y] of [[33, 3], [31, 1], [34, 0], [30, 5]]) rect(ctx, "rgba(240,240,240,0.85)", x, y, 3, 2); // steam
+    for (const x of [7, 39]) {
+      rect(ctx, "#3b3246", x + 1, 24, 1, 2); // red lanterns under the eaves
+      rect(ctx, "#d6453d", x, 26, 3, 4);
+      rect(ctx, "#f2c14e", x, 28, 3, 1);
+    }
+    rect(ctx, "#d6453d", 18, 27, 6, 10); // red and blue noren
+    rect(ctx, "#ffffff", 20, 30, 2, 2);
+    rect(ctx, "#8a5a33", 32, 41, 11, 2); // bench
+    rect(ctx, "#5c3b22", 33, 43, 1, 2);
+    rect(ctx, "#5c3b22", 41, 43, 1, 2);
+  },
+  stage: (ctx) => {
+    for (const x of [0, 44]) {
+      rect(ctx, "#1d2230", x, 22, 4, 12); // speakers
+      rect(ctx, "#5b6474", x + 1, 24, 2, 2);
+      rect(ctx, "#5b6474", x + 1, 28, 2, 3);
+    }
+    for (let x = 6; x < 43; x += 6) {
+      rect(ctx, ["#e8504b", "#f2c14e", "#7ec8e3"][(x / 6) % 3], x, 1, 3, 3); // flags
+      rect(ctx, "#5c3b22", x + 1, 4, 1, 2);
+    }
+    rect(ctx, "rgba(255,240,170,0.35)", 14, 14, 6, 20); // spotlights
+    rect(ctx, "rgba(255,240,170,0.35)", 28, 14, 6, 20);
+  },
+  market: (ctx) => {
+    for (let x = 1; x < 47; x += 2) rect(ctx, "#3b3246", x, 10 + Math.round(Math.sin(x / 7.5) * 2)); // bunting
+    for (let x = 3; x < 46; x += 5) {
+      const y = 11 + Math.round(Math.sin(x / 7.5) * 2);
+      rect(ctx, ["#e8504b", "#f2c14e", "#3f6fb5", "#5b8f3a"][x % 4], x, y, 3, 2);
+      rect(ctx, ["#e8504b", "#f2c14e", "#3f6fb5", "#5b8f3a"][x % 4], x + 1, y + 2);
+    }
+    for (const x of [4, 20, 36]) {
+      rect(ctx, "#a06a3d", x, 40, 6, 4); // crates
+      rect(ctx, "#8a5a33", x, 41, 6, 1);
+      rect(ctx, ["#e8504b", "#a6d96a", "#f2a33a"][(x / 16) | 0], x + 1, 39, 4, 1);
+    }
+  },
+  workshop: (ctx) => {
+    rect(ctx, "#f2c14e", 21, 13, 5, 3); // the gear turns gold
+    rect(ctx, "#f2c14e", 23, 12, 1, 5);
+    rect(ctx, "#3b3f4a", 35, 3, 4, 9); // chimney with smoke
+    for (const [x, y] of [[36, 0], [38, 1], [34, 1]]) rect(ctx, "rgba(220,220,220,0.85)", x, y, 2, 2);
+    rect(ctx, "#9fd3f0", 8, 12, 6, 3); // skylight
+    rect(ctx, "#a06a3d", 0, 38, 12, 4); // cart
+    rect(ctx, "#5c3b22", 0, 38, 12, 1);
+    rect(ctx, "#3b3f4a", 2, 42, 3, 3);
+    rect(ctx, "#3b3f4a", 8, 42, 3, 3);
+    rect(ctx, "#d9a35b", 2, 36, 8, 2);
+  },
+  petpark: (ctx) => {
+    for (const x of [28, 38]) {
+      rect(ctx, "#f4f1e8", x, 34, 1, 6); // hurdles
+      rect(ctx, "#f4f1e8", x + 5, 34, 1, 6);
+      rect(ctx, "#e8504b", x, 35, 6, 1);
+    }
+    rect(ctx, "#3f6fb5", 8, 37, 12, 4); // tunnel
+    rect(ctx, "#2f5a99", 8, 37, 2, 4);
+    rect(ctx, "#1d2230", 18, 38, 2, 2);
+    rect(ctx, "#4f8fd6", 37, 14, 6, 4); // water bowl pond
+    rect(ctx, "#d9a35b", 25, 24, 8, 6); // a second dog house
+    for (let i = 0; i < 4; i++) rect(ctx, "#3f6fb5", 24 + i, 24 - i, 10 - i * 2, 1);
+    rect(ctx, "#5c3b22", 27, 26, 4, 4);
+  },
+};
+
 const NAMES: Record<string, string> = {
   bakery: "Bakery",
   library: "Library",
@@ -252,7 +404,8 @@ export function landmarkName(kind: string): string {
 }
 
 export interface LandmarkArt {
-  landmark: (kind: string) => Texture;
+  /** A landmark at its first stage, or its bigger second stage. */
+  landmark: (kind: string, bigger?: boolean) => Texture;
   /** A lot kept for a landmark. */
   site: Texture;
   /** The landmark being built next (or about to be revealed). */
@@ -264,11 +417,16 @@ export interface LandmarkArt {
 
 export function makeLandmarkArt(): LandmarkArt {
   const cache = new Map<string, Texture>();
-  const landmark = (kind: string) => {
-    let t = cache.get(kind);
+  const landmark = (kind: string, bigger = false) => {
+    const key = `${kind}${bigger ? "+" : ""}`;
+    let t = cache.get(key);
     if (!t) {
-      t = texture(48, 48, PAINT[kind] ?? PAINT.garden);
-      cache.set(kind, t);
+      const paint = PAINT[kind] ?? PAINT.garden;
+      t = texture(48, 48, (ctx) => {
+        paint(ctx);
+        if (bigger) BIGGER[kind]?.(ctx);
+      });
+      cache.set(key, t);
     }
     return t;
   };

@@ -2,9 +2,11 @@
 """The town grows with thanks.
 
 Town XP comes from what happens in it: thanks (x2), know-how shared (x3), questions (x1) and
-every chat between avatars (x1). Each level builds a landmark, and which one depends on what the town has thanked most: a town that
-thanks cooking tips gets a bakery, one that thanks kids' tips gets a playground. So the town's
-character comes from what its people found helpful.
+every chat between avatars (x1). Each level builds a landmark, and which one depends on what
+the town has thanked most: a town that thanks cooking tips gets a bakery, one that thanks
+kids' tips gets a playground. Once every landmark stands (and the festival lanterns hang),
+each level makes one bigger, again the most thanked first. So the town's character comes
+from what its people found helpful.
 """
 
 from __future__ import annotations
@@ -17,10 +19,14 @@ from overhearth import i18n
 from overhearth.models import Packet, ReportItem, TownEvent
 from overhearth.text import words
 
-LEVELS = [0, 150, 350, 600, 900, 1250, 1650, 2100, 2600, 3150, 3750, 4400, 5100]
-"""XP needed for each level. Level 1 is the start; every level after it builds a landmark, the
-last one the festival lanterns. With a few dozen homes chatting every half hour, the town fills
-in over about a week."""
+LEVELS = [
+    *[0, 150, 350, 600, 900, 1250, 1650, 2100, 2600, 3150, 3750, 4400, 5100],
+    *[5950, 6910, 7980, 9160, 10450, 11850, 13360, 14980, 16710, 18550, 20500],
+]
+"""XP needed for each level. Level 1 is the start. Levels 2-13 build the eleven landmarks and
+then the festival lanterns; levels 14-24 make each landmark bigger. With a few dozen homes
+chatting every half hour (~600 XP a day), every landmark stands after about a week, and the
+last one grows about four weeks after that."""
 
 XP = {"thanks": 2, "tip": 3, "question": 1}
 
@@ -249,6 +255,57 @@ THEMES = {
     "rainy": "playground",
 }
 
+# What a landmark is called once it is known ("the bakery"). Japanese, Korean and Chinese use the name as is.
+THE: dict[str, dict[str, str]] = {
+    "bakery": {
+        "en": "the bakery",
+        "es": "la panadería",
+        "fr": "la boulangerie",
+        "pt": "a padaria",
+        "de": "die Bäckerei",
+    },
+    "playground": {
+        "en": "the playground",
+        "es": "el parque infantil",
+        "fr": "l'aire de jeux",
+        "pt": "o parquinho",
+        "de": "der Spielplatz",
+    },
+    "library": {
+        "en": "the library",
+        "es": "la biblioteca",
+        "fr": "la bibliothèque",
+        "pt": "a biblioteca",
+        "de": "die Bibliothek",
+    },
+    "garden": {"en": "the garden", "es": "el jardín", "fr": "le jardin", "pt": "o jardim", "de": "der Garten"},
+    "clinic": {
+        "en": "the clinic",
+        "es": "la clínica",
+        "fr": "le cabinet médical",
+        "pt": "a clínica",
+        "de": "die Praxis",
+    },
+    "cafe": {"en": "the café", "es": "el café", "fr": "le café", "pt": "o café", "de": "das Café"},
+    "bathhouse": {
+        "en": "the bathhouse",
+        "es": "la casa de baños",
+        "fr": "le bain public",
+        "pt": "a casa de banhos",
+        "de": "das Badehaus",
+    },
+    "stage": {"en": "the music stage", "es": "el escenario", "fr": "la scène", "pt": "o palco", "de": "die Bühne"},
+    "market": {"en": "the market", "es": "el mercado", "fr": "le marché", "pt": "a feira", "de": "der Markt"},
+    "workshop": {"en": "the workshop", "es": "el taller", "fr": "l'atelier", "pt": "a oficina", "de": "die Werkstatt"},
+    "petpark": {
+        "en": "the dog park",
+        "es": "el parque para perros",
+        "fr": "le parc à chiens",
+        "pt": "o parque para cães",
+        "de": "die Hundewiese",
+    },
+}
+
 BUILT = {
     "en": "{name} opened in town! It grew from all the thanks for {what}.",
     "ja": "町に{name}ができました！{what}への感謝がきっかけです。",
@@ -258,6 +315,17 @@ BUILT = {
     "pt": "Abriu {name} na cidade! Tudo começou com os agradecimentos por {what}.",
     "de": "Neu in der Stadt: {name}! Alles begann mit dem Dank für {what}.",
     "zh": "小镇上开了{name}！起因是大家感谢{what}。",
+}
+
+GREW = {
+    "en": "{name} got bigger! The thanks for {what} keep coming.",
+    "ja": "{name}が大きくなりました！{what}への感謝が続いています。",
+    "es": "¡{name} creció! Siguen llegando agradecimientos por {what}.",
+    "fr": "Agrandissement pour {name} ! Les remerciements pour {what} continuent.",
+    "ko": "{name}{subject} 더 커졌어요! {what}에 대한 감사가 계속되고 있어요.",
+    "pt": "{name} cresceu! Os agradecimentos por {what} continuam.",
+    "de": "{name} ist gewachsen! Der Dank für {what} reißt nicht ab.",
+    "zh": "{name}扩建了！大家还在不断感谢{what}。",
 }
 
 FESTIVAL = {
@@ -278,13 +346,18 @@ def _korean_subject(word: str) -> str:
     return "이" if 0 <= last < 11172 and last % 28 else "가"
 
 
-def announce(kind: str, language: str) -> str:
-    """The news of a new landmark, in a home's language."""
+def announce(kind: str, language: str, *, upgrade: bool = False) -> str:
+    """The news of a new (or bigger) landmark, in a home's language."""
     language = language if language in BUILT else "en"
     if kind == "lanterns":
         return FESTIVAL[language]
     name, what = LANDMARKS[kind][1].get(language, LANDMARKS[kind][1]["en"])
-    text = BUILT[language].format(name=name, what=what, subject=_korean_subject(name))
+    if upgrade:
+        name = THE[kind].get(language, name)
+    template = (GREW if upgrade else BUILT)[language]
+    text = template.format(name=name, what=what, subject=_korean_subject(name))
+    if text.startswith("¡"):
+        return "¡" + text[1].upper() + text[2:]
     return text[0].upper() + text[1:]
 
 
@@ -328,22 +401,42 @@ def next_landmark(thanked: Counter[str], built: list[str]) -> str:
     return remaining[0] if remaining else "lanterns"
 
 
-def _earned(thanked: Counter[str], level: int, at: str) -> list[dict[str, Any]]:
-    """The landmarks a town at `level` has, built in order of what it thanked most."""
-    built: list[str] = []
-    landmarks = []
-    for n in range(2, level + 1):
-        kind = next_landmark(thanked, built)
-        built.append(kind)
-        landmarks.append({"kind": kind, "level": n, "at": at})
-    return landmarks
+def next_step(thanked: Counter[str], built: list[str], upgraded: list[str]) -> tuple[str, bool]:
+    """What the next level brings: (landmark, whether it is an upgrade of a built one).
+
+    Every landmark (and the lanterns) comes first; then the landmarks grow bigger, the most
+    thanked topic first.
+    """
+    if len(built) < len(LANDMARKS):
+        return next_landmark(thanked, built), False
+    for kind, _ in thanked.most_common():
+        if kind in LANDMARKS and kind != "lanterns" and kind not in upgraded:
+            return kind, True
+    return next(k for k in LANDMARKS if k != "lanterns" and k not in upgraded), True
+
+
+def _steps(thanked: Counter[str], record: dict[str, Any], levels: range, at: str) -> list[tuple[str, bool, int]]:
+    """Apply the steps for `levels` to `record` (in place) and return them."""
+    record.setdefault("landmarks", [])
+    record.setdefault("upgrades", [])
+    steps = []
+    for n in levels:
+        built = [lm["kind"] for lm in record["landmarks"]]
+        upgraded = [lm["kind"] for lm in record["upgrades"]]
+        kind, upgrade = next_step(thanked, built, upgraded)
+        record["upgrades" if upgrade else "landmarks"].append({"kind": kind, "level": n, "at": at})
+        steps.append((kind, upgrade, n))
+    return steps
 
 
 def summary(packets: list[Packet], record: dict[str, Any] | None) -> dict[str, Any]:
-    """What the town view shows: level, progress to the next landmark, the landmarks built."""
+    """What the town view shows: level, progress to the next step, the landmarks and upgrades."""
     xp, thanked = xp_and_categories(packets)
     xp += (record or {}).get("chats", 0)
     level = (record or {}).get("level") or level_for(xp)
+    if record is None:
+        record = {}
+        _steps(thanked, record, range(2, level + 1), "")
     current = LEVELS[min(level, len(LEVELS)) - 1]
     upcoming = LEVELS[level] if level < len(LEVELS) else None
     return {
@@ -351,13 +444,14 @@ def summary(packets: list[Packet], record: dict[str, Any] | None) -> dict[str, A
         "xp": xp,
         "level_xp": current,
         "next_xp": upcoming,
-        "landmarks": record["landmarks"] if record else _earned(thanked, level, ""),
+        "landmarks": record.get("landmarks", []),
+        "upgrades": record.get("upgrades", []),
         "leading": thanked.most_common(1)[0][0] if thanked else None,
     }
 
 
 def grow(store, at: datetime, tick: int, *, chats: int = 0) -> tuple[list[TownEvent], dict[str, list[ReportItem]]]:
-    """Build the landmarks the town has earned, counting this tick's `chats` between avatars.
+    """Build (or enlarge) the landmarks the town has earned, counting this tick's `chats`.
 
     The first time (no record yet), the town quietly starts with what its history earned.
     """
@@ -367,32 +461,26 @@ def grow(store, at: datetime, tick: int, *, chats: int = 0) -> tuple[list[TownEv
     chats += (record or {}).get("chats", 0)
     level = level_for(xp + chats)
     if record is None:
-        landmarks = _earned(thanked, level, at.isoformat())
-        store.put_growth({"level": level, "landmarks": landmarks, "chats": chats})
+        record = {}
+        _steps(thanked, record, range(2, level + 1), at.isoformat())
+        store.put_growth({**record, "level": level, "chats": chats})
         return [], {}
     if level <= record["level"]:
         store.put_growth({**record, "chats": chats})
         return [], {}
     events: list[TownEvent] = []
     lines: dict[str, list[ReportItem]] = {}
-    built = [lm["kind"] for lm in record["landmarks"]]
-    landmarks = list(record["landmarks"])
     homes = [h for h in store.households() if h.tier in ("demo", "real")]
-    for n in range(record["level"] + 1, level + 1):
-        kind = next_landmark(thanked, built)
-        built.append(kind)
-        landmarks.append({"kind": kind, "level": n, "at": at.isoformat()})
+    for kind, upgrade, n in _steps(thanked, record, range(record["level"] + 1, level + 1), at.isoformat()):
+        detail: dict[str, Any] = {"landmark": kind, "level": n}
+        if upgrade:
+            detail["upgrade"] = True
         events.append(
-            TownEvent(
-                tick=tick,
-                at=at,
-                type="town",
-                summary=announce(kind, "en"),
-                detail={"landmark": kind, "level": n},
-            )
+            TownEvent(tick=tick, at=at, type="town", summary=announce(kind, "en", upgrade=upgrade), detail=detail)
         )
+        key = f"growth:{kind}:bigger" if upgrade else f"growth:{kind}"
         for home in homes:
-            text = announce(kind, i18n.normalize(home.language))
-            lines.setdefault(home.id, []).append(ReportItem(kind="growth", text=text, key=f"growth:{kind}"))
-    store.put_growth({"level": level, "landmarks": landmarks, "chats": chats})
+            text = announce(kind, i18n.normalize(home.language), upgrade=upgrade)
+            lines.setdefault(home.id, []).append(ReportItem(kind="growth", text=text, key=key))
+    store.put_growth({**record, "level": level, "chats": chats})
     return events, lines
