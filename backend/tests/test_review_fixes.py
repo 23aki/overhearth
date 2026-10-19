@@ -115,3 +115,33 @@ def test_get_on_mcp_is_405_instead_of_a_stream_that_never_ends():
         response = client.get("/mcp", headers={**HEADERS, "Accept": "text/event-stream"})
         assert response.status_code == 405
         assert "POST" in response.headers["allow"]
+
+
+def test_access_key_gates_the_api_while_in_development(monkeypatch):
+    monkeypatch.setenv("OVERHEARTH_ACCESS_KEY", "preview-key")
+    with TestClient(create_app(seeded_store()), base_url="http://localhost:8000") as client:
+        assert client.get("/health").status_code == 200
+        assert client.get("/.well-known/oauth-protected-resource").status_code == 200
+        assert client.post("/mcp", json=INIT, headers=HEADERS).status_code == 403
+        turn = {"messages": [{"role": "user", "text": "hi"}]}
+        assert client.post("/assistant/turn", json=turn, headers=HEADERS).status_code == 403
+        assert client.post("/token", data={"grant_type": "refresh_token"}).status_code == 403
+        wrong = client.post("/mcp", json=INIT, headers={**HEADERS, "X-Overhearth-Access": "nope"})
+        assert wrong.status_code == 403
+        ok = client.post("/mcp", json=INIT, headers={**HEADERS, "X-Overhearth-Access": "preview-key"})
+        assert ok.status_code == 200
+        preflight = client.options(
+            "/mcp",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "x-overhearth-access",
+            },
+        )
+        assert preflight.status_code == 200
+
+
+def test_without_an_access_key_nothing_is_gated(monkeypatch):
+    monkeypatch.delenv("OVERHEARTH_ACCESS_KEY", raising=False)
+    with TestClient(create_app(seeded_store()), base_url="http://localhost:8000") as client:
+        assert client.post("/mcp", json=INIT, headers=HEADERS).status_code == 200

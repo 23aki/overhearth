@@ -229,6 +229,11 @@ cd ../backend && AWS_PROFILE=<deploy-profile> uv run python -m overhearth.store.
 | `lambdaAdapterLayerVersion` | `25` | Version of the public Lambda Web Adapter layer |
 | `bedrockModel` | `global.anthropic.claude-haiku-5-5` | Model or inference profile for the Alexa layer and the avatars |
 | `mailFrom` | empty (dry run) | Verified SES sender. Set it to send emails to linked homes |
+| `previewPassword` | empty (open) | While in development: Basic authentication on the web client (user `overhearth`) |
+| `accessKey` | empty (open) | While in development: the API (`/mcp`, `/assistant/turn`, `/token`, `/dev/tick`) needs this key in an `X-Overhearth-Access` header. The web client gets it from `config.js`, behind the Basic authentication |
+
+Pass `previewPassword` and `accessKey` on the command line only; deploying without them opens the
+demo again.
 
 ## Data and privacy
 

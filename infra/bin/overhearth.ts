@@ -12,4 +12,6 @@ new OverhearthStack(app, "Overhearth", {
   lambdaAdapterLayerVersion: Number(context("lambdaAdapterLayerVersion") ?? 25),
   bedrockModel: String(context("bedrockModel") ?? "global.anthropic.claude-haiku-5-5"),
   mailFrom: String(context("mailFrom") ?? ""),
+  previewPassword: String(context("previewPassword") ?? ""),
+  accessKey: String(context("accessKey") ?? ""),
 });

@@ -1,5 +1,5 @@
 import { type CallToolResult, Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
-import { MCP_URL } from "./config";
+import { MCP_URL, apiHeaders } from "./config";
 
 export interface ToolInfo {
   name: string;
@@ -25,7 +25,7 @@ export class McpConnection {
 
   static async open(token: string): Promise<McpConnection> {
     const transport = new StreamableHTTPClientTransport(new URL(MCP_URL), {
-      requestInit: { headers: { Authorization: `Bearer ${token}` } },
+      requestInit: { headers: { ...apiHeaders(), Authorization: `Bearer ${token}` } },
     });
     const client = new Client({ name: "overhearth-simulated-alexa", version: "0.1.0" }, { capabilities: {} });
     await client.connect(transport);

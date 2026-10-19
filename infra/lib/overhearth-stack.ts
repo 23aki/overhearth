@@ -29,7 +29,15 @@ export interface OverhearthProps extends StackProps {
   bedrockModel: string;
   /** Verified SES sender for emails to linked homes. Empty: emails are only shown (dry run). */
   mailFrom: string;
+  /**
+   * While in development: Basic authentication on the web client and an access key for the API.
+   * Passed on the command line, never stored in the repository. Empty: the demo is open.
+   */
+  previewPassword: string;
+  accessKey: string;
 }
+
+const PREVIEW_USER = "overhearth";
 
 /**
  * Overhearth on AWS:
@@ -59,10 +67,31 @@ export class OverhearthStack extends Stack {
       removalPolicy: RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
     });
+    const basicAuth = props.previewPassword
+      ? new cloudfront.Function(this, "PreviewAuth", {
+          runtime: cloudfront.FunctionRuntime.JS_2_0,
+          comment: "Basic authentication while Overhearth is in development",
+          code: cloudfront.FunctionCode.fromInline(`
+function handler(event) {
+  var auth = event.request.headers.authorization;
+  if (auth && auth.value === "Basic ${Buffer.from(`${PREVIEW_USER}:${props.previewPassword}`).toString("base64")}") {
+    return event.request;
+  }
+  return {
+    statusCode: 401,
+    statusDescription: "Unauthorized",
+    headers: { "www-authenticate": { value: 'Basic realm="Overhearth preview"' } },
+  };
+}`),
+        })
+      : undefined;
     const distribution = new cloudfront.Distribution(this, "WebDistribution", {
       defaultBehavior: {
         origin: origins.S3BucketOrigin.withOriginAccessControl(site),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        functionAssociations: basicAuth
+          ? [{ function: basicAuth, eventType: cloudfront.FunctionEventType.VIEWER_REQUEST }]
+          : [],
       },
       defaultRootObject: "index.html",
       priceClass: cloudfront.PriceClass.PRICE_CLASS_100,
@@ -111,6 +140,7 @@ export class OverhearthStack extends Stack {
         OVERHEARTH_ALLOWED_ORIGINS: webOrigin,
         OVERHEARTH_WEB_REDIRECTS: `${webOrigin}/`,
         OVERHEARTH_DEV_ENDPOINTS: props.demoTick ? "1" : "0",
+        ...(props.accessKey ? { OVERHEARTH_ACCESS_KEY: props.accessKey } : {}),
       },
       logGroup: new logs.LogGroup(this, "ApiLogs", {
         retention: logs.RetentionDays.ONE_MONTH,
@@ -163,7 +193,12 @@ export class OverhearthStack extends Stack {
         s3deploy.Source.asset(path.join(repo, "web/dist"), { exclude: ["config.js"] }),
         s3deploy.Source.data(
           "config.js",
-          `window.__OVERHEARTH__ = { backendUrl: "${http.apiEndpoint}", devTick: ${props.demoTick} };\n`,
+          `window.__OVERHEARTH__ = ${JSON.stringify({
+            backendUrl: http.apiEndpoint,
+            devTick: props.demoTick,
+            ...(props.accessKey ? { accessKey: props.accessKey } : {}),
+          })};
+`,
         ),
       ],
     });

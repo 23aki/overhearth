@@ -2,7 +2,7 @@
  * Account linking for a real household: OAuth 2.1 authorization code + PKCE (S256), the way
  * Alexa+ links an account to an MCP server. The demo households skip this with pre-issued tokens.
  */
-import { BACKEND_URL } from "./config";
+import { BACKEND_URL, apiHeaders } from "./config";
 
 const CLIENT_ID = "overhearth-web";
 const LINKED_KEY = "overhearth.linked-home";
@@ -73,7 +73,7 @@ export async function startLinking(): Promise<void> {
 async function requestToken(form: Record<string, string>): Promise<TokenResponse> {
   const response = await fetch(`${BACKEND_URL}/token`, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    headers: { ...apiHeaders(), "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ client_id: CLIENT_ID, ...form }),
   });
   const body = (await response.json()) as TokenResponse;
