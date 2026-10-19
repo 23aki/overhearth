@@ -14,4 +14,7 @@ new OverhearthStack(app, "Overhearth", {
   mailFrom: String(context("mailFrom") ?? ""),
   previewPassword: String(context("previewPassword") ?? ""),
   accessKey: String(context("accessKey") ?? ""),
+  llm: String(context("llm") ?? "bedrock") === "anthropic" ? "anthropic" : "bedrock",
+  anthropicApiKey: String(context("anthropicApiKey") ?? ""),
+  anthropicModel: String(context("anthropicModel") ?? ""),
 });
