@@ -114,7 +114,7 @@ def test_linking_a_home_end_to_end(http, server_url, store):
     assert tokens.headers["cache-control"] == "no-store"
     body = tokens.json()
     assert body["token_type"] == "Bearer"
-    assert body["household"] == {"avatar": "Nori", "label": "a family flat in Kyoto"}
+    assert body["household"] == {"avatar": "Nori", "label": "a family flat in Kyoto", "language": "en"}
 
     home = store.household_for_token(body["access_token"])
     assert home is not None
@@ -205,3 +205,16 @@ def test_a_bad_email_shows_the_form_again(http):
     response = _authorize(http, secrets.token_urlsafe(48), email="not an email")
     assert response.status_code == 400
     assert "email address" in response.text
+
+
+def test_a_home_links_with_its_language(http, store):
+    verifier = secrets.token_urlsafe(48)
+    tokens = _exchange(http, _code(_authorize(http, verifier, language="ja")), verifier).json()
+    assert tokens["household"]["language"] == "ja"
+    assert store.household_for_token(tokens["access_token"]).language == "ja"
+
+
+def test_an_unknown_language_falls_back_to_english(http, store):
+    verifier = secrets.token_urlsafe(48)
+    tokens = _exchange(http, _code(_authorize(http, verifier, language="xx")), verifier).json()
+    assert store.household_for_token(tokens["access_token"]).language == "en"

@@ -34,9 +34,18 @@ def main() -> None:
     dialogue = ClaudeDialogue() if args.anthropic else BedrockDialogue() if args.bedrock else TemplateDialogue()
     if (args.anthropic or args.bedrock) and not args.all_encounters:
         dialogue = FeaturedDialogue(dialogue)  # as the server does, to keep model calls down
+    translator = None
+    if args.anthropic:
+        from overhearth.translate import ClaudeTranslator
+
+        translator = ClaudeTranslator()
+    elif args.bedrock:
+        from overhearth.translate import BedrockTranslator
+
+        translator = BedrockTranslator()
     rng = random.Random(args.seed)
     for _ in range(args.ticks):
-        result = run_tick(store, dialogue, rng=rng, out_ratio=1.0)
+        result = run_tick(store, dialogue, rng=rng, out_ratio=1.0, translator=translator)
         print(f"tick {result.tick}: {result}")
     for event in store.town_events(limit=args.show):
         print(f"  [{event.type}] {event.summary}")

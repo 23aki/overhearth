@@ -37,6 +37,7 @@ class MemoryStore:
         self._codes: dict[str, AuthGrant] = {}
         self._heard: dict[str, Report] = {}
         self._delivery: dict[str, DeliverySettings] = {}
+        self._translations: dict[tuple[str, str], dict[str, str]] = {}
         self._packets: dict[str, Packet] = {}
         self._reports: dict[str, Report] = {}
         self._events: list[TownEvent] = []
@@ -151,6 +152,13 @@ class MemoryStore:
 
     def last_heard_report(self, household_id: str) -> Report | None:
         return self._heard.get(household_id)
+
+    def get_translation(self, key: str, language: str) -> dict[str, str] | None:
+        found = self._translations.get((key, language))
+        return dict(found) if found else None
+
+    def put_translation(self, key: str, language: str, fields: dict[str, str]) -> None:
+        self._translations[(key, language)] = dict(fields)
 
     def get_delivery(self, household_id: str) -> DeliverySettings | None:
         return self._delivery.get(household_id)

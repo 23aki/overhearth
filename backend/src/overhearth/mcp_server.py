@@ -22,6 +22,7 @@ from overhearth.assistant import RateLimiter
 from overhearth.delivery import Mailer, mailer_from_env, mask_email, report_email
 from overhearth.models import Household, KnowledgeEntry, Packet, PacketContext, ReportItem, TownEvent, utcnow
 from overhearth.store import Store
+from overhearth.translate import Localizer
 
 log = logging.getLogger(__name__)
 
@@ -85,6 +86,7 @@ class TownHome(BaseModel):
     avatar: str
     tier: str
     region: str
+    language: str = "en"
     glow: int = Field(description="How many times know-how from this home was thanked.")
 
 
@@ -111,6 +113,7 @@ def _town_html() -> str:
 def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
     mailer = mailer or mailer_from_env()
     email_limiter = RateLimiter(limit=5)
+    localizer = Localizer(store)
     apps = Apps()
 
     @apps.tool(
@@ -179,7 +182,7 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
                 origin_household=household.id,
                 payload=payload,
                 refs=[tip_id] if tip_id else [],
-                context=PacketContext(region=household.region),
+                context=PacketContext(region=household.region, language=household.language),
                 consented_at=utcnow(),
             )
         )
@@ -197,7 +200,8 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
             "Take something to the town for the person: a tip (know-how they want to share) or a "
             "question (something they want the town to ask around about). Call first with "
             "confirmed=false to get a preview to read back, and again with confirmed=true only "
-            "after the person agrees."
+            "after the person agrees. Write the topic in English (a few words) and the text in the "
+            "person's own words and language."
         ),
         annotations=APPEND_ONLY,
     )
@@ -223,7 +227,7 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
             kind=kind,
             origin_household=household.id,
             payload=payload,
-            context=PacketContext(topics=[payload["topic"]], region=household.region),
+            context=PacketContext(topics=[payload["topic"]], region=household.region, language=household.language),
             consented_at=utcnow(),
         )
         store.add_packet(packet)
@@ -239,13 +243,15 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
         title="Ask the town",
         description=(
             "Answer an everyday question with know-how other homes shared, ranked by how often it "
-            "was thanked. Use for practical questions like quick dinners, leftovers, or routines."
+            "was thanked. Use for practical questions like quick dinners, leftovers, or routines. "
+            "Write the question in English, whatever language the person speaks; answers come back "
+            "in the home's language when a translation is ready, otherwise in the original language."
         ),
         annotations=READ_ONLY,
     )
     def ask_town(question: str, ctx: Context) -> AskResult:
-        _household(ctx, store)
-        answers = store.search_knowledge(question, limit=3)
+        household = _household(ctx, store)
+        answers = [_localized_entry(entry, household) for entry in store.search_knowledge(question, limit=3)]
         if not answers:
             return AskResult(
                 speech="Nobody in town has talked about that yet. Want me to ask around?",
@@ -256,6 +262,22 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
             speech=f"From {top.origin_label}{thanked}: {top.text}",
             answers=answers,
         )
+
+    def _localized_entry(entry: KnowledgeEntry, household: Household) -> KnowledgeEntry:
+        """A tip in the home's language, if a translation is stored (tools never call a model)."""
+        tip = store.get_packet(entry.packet_id)
+        if tip is None:
+            return entry
+        fields = localizer.fields(
+            f"packet:{tip.id}", {"topic": entry.topic, "text": entry.text}, tip.context.language, household.language
+        )
+        origin = store.get_household(tip.origin_household)
+        label = (
+            localizer.fields(f"label:{origin.id}", {"label": origin.label}, "en", household.language)["label"]
+            if origin
+            else entry.origin_label
+        )
+        return entry.model_copy(update={"topic": fields["topic"], "text": fields["text"], "origin_label": label})
 
     @mcp.tool(
         name="town_report",

@@ -27,6 +27,8 @@ export interface TownView {
   onSelect(callback: (home: Home) => void): void;
   /** 0 is day, 1 is deep night; null follows the viewer's clock. */
   setNight(level: number | null): void;
+  /** Show a small English translation under lines in other languages. */
+  setSubtitles(on: boolean): void;
   destroy(): void;
 }
 
@@ -51,7 +53,18 @@ const BUBBLE = new TextStyle({
   fill: "#1d2230",
   wordWrap: true,
   wordWrapWidth: 110,
+  breakWords: true, // Japanese, Chinese and Korean have no spaces to break at
   lineHeight: 9,
+});
+const GLOSS = new TextStyle({
+  fontFamily: "system-ui, -apple-system, 'Segoe UI', sans-serif",
+  fontSize: 5.5,
+  fontStyle: "italic",
+  fill: "#5b6474",
+  wordWrap: true,
+  wordWrapWidth: 110,
+  breakWords: true,
+  lineHeight: 7,
 });
 const FLOAT = new TextStyle({
   fontFamily: "ui-monospace, Menlo, Consolas, monospace",
@@ -161,10 +174,12 @@ class Bubble {
     text: string,
     private readonly avatar: Avatar,
     layer: Container,
+    gloss?: string | null,
   ) {
     const label = new Text({ text, style: BUBBLE, resolution: 4 });
-    const w = Math.ceil(label.width) + 8;
-    const h = Math.ceil(label.height) + 6;
+    const sub = gloss ? new Text({ text: gloss, style: GLOSS, resolution: 4 }) : null;
+    const w = Math.ceil(Math.max(label.width, sub?.width ?? 0)) + 8;
+    const h = Math.ceil(label.height + (sub ? sub.height + 2 : 0)) + 6;
     const box = new Graphics()
       .roundRect(-w / 2, -h - 5, w, h, 3)
       .fill({ color: 0xffffff })
@@ -173,6 +188,10 @@ class Bubble {
       .fill({ color: 0xffffff });
     label.position.set(-w / 2 + 4, -h - 2);
     this.node.addChild(box, label);
+    if (sub) {
+      sub.position.set(-w / 2 + 4, -h - 2 + label.height + 2);
+      this.node.addChild(sub);
+    }
     layer.addChild(this.node);
     this.update();
   }
@@ -235,6 +254,7 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
   let followed: string | null = null;
   let selectCallback: ((home: Home) => void) | null = null;
   let nightOverride: number | null = null;
+  let subtitles = true;
   let nightLevel = 0;
   let replayToken = 0;
   let clock = 0;
@@ -381,9 +401,10 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
     if (token === replayToken) avatar.busy = false;
   }
 
-  function bubble(avatar: Avatar, text: string, ms: number): Promise<void> {
-    const short = text.length > 90 ? `${text.slice(0, 87)}…` : text;
-    const b = new Bubble(short, avatar, bubbles);
+  const clip = (text: string) => (text.length > 90 ? `${text.slice(0, 87)}…` : text);
+
+  function bubble(avatar: Avatar, text: string, ms: number, gloss?: string | null): Promise<void> {
+    const b = new Bubble(clip(text), avatar, bubbles, subtitles && gloss ? clip(gloss) : null);
     liveBubbles.add(b);
     return sleep(ms).then(() => {
       liveBubbles.delete(b);
@@ -491,7 +512,8 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
       for (const line of featured ? lines : lines.slice(0, 1)) {
         if (token !== replayToken) return;
         const speaker = line.speaker === a.home.avatar ? a : line.speaker === b.home.avatar ? b : a;
-        await bubble(speaker, line.text, featured ? Math.min(4200, 1400 + line.text.length * 32) : 1800);
+        const reading = line.text.length + (subtitles && line.gloss ? line.gloss.length / 2 : 0);
+        await bubble(speaker, line.text, featured ? Math.min(5200, 1400 + reading * 32) : 1800, line.gloss);
       }
     }
     for (const item of (event.detail.items ?? []).slice(0, 4)) {
@@ -595,6 +617,10 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
       nightOverride = level;
       nightLevel = level ?? clockNight();
       updateLights();
+    },
+
+    setSubtitles(on) {
+      subtitles = on;
     },
 
     destroy() {

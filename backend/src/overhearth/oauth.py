@@ -32,6 +32,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from overhearth.assistant import RateLimiter
 from overhearth.delivery import valid_email
+from overhearth.i18n import LANGUAGES, normalize
 from overhearth.kinds.base import scrub
 from overhearth.models import AuthGrant, DeliverySettings, Household, IssuedToken, new_id, utcnow
 from overhearth.store import Store
@@ -266,6 +267,7 @@ def install_oauth_routes(server, store: Store, clients: dict[str, OAuthClient] |
             timezone=timezone,
             tier="real",
             avatar_name=avatar,
+            language=normalize(params.get("language")),
         )
         delivery = (
             DeliverySettings(household_id=household.id, email=email, notify_thanks=params.get("notify") == "on")
@@ -327,7 +329,11 @@ def install_oauth_routes(server, store: Store, clients: dict[str, OAuthClient] |
         if household:
             # Extra response parameters are allowed (RFC 6749 section 5.1); the simulated
             # client uses them to label the linked home.
-            body["household"] = {"avatar": household.avatar_name, "label": household.label}
+            body["household"] = {
+                "avatar": household.avatar_name,
+                "label": household.label,
+                "language": household.language,
+            }
         return body
 
     def _authenticate_client(request: Request, form) -> OAuthClient | None:
@@ -401,6 +407,11 @@ def _consent_form(client: OAuthClient, params) -> str:
         return html.escape(str(params.get(name, "")), quote=True)
 
     hidden = "".join(f'<input type="hidden" name="{name}" value="{value(name)}">' for name in _CARRIED_PARAMS)
+    chosen = normalize(params.get("language") or "en")
+    language_options = "".join(
+        f'<option value="{code}"{" selected" if code == chosen else ""}>{html.escape(native)} ({english})</option>'
+        for code, (english, native) in LANGUAGES.items()
+    )
     host = html.escape(urlsplit(str(params.get("redirect_uri", ""))).netloc)
     return f"""
 <p><strong>{html.escape(client.name)}</strong> ({host}) wants to link this Alexa to Overhearth.</p>
@@ -415,6 +426,7 @@ home, and contact details are removed. Other homes see the description below, ne
     placeholder="a family flat in Kyoto"></label>
   <label>City or region <input name="region" maxlength="40" required value="{value("region")}"
     placeholder="Kyoto"></label>
+  <label>Your home's language <select name="language">{language_options}</select></label>
   <label>Email for town news in writing (optional) <input name="email" type="email" maxlength="120"
     value="{value("email")}" placeholder="you@example.com"></label>
   <label class="check"><input type="checkbox" name="notify"{" checked" if params.get("notify") == "on" else ""}>
@@ -442,7 +454,7 @@ def _page(title: str, body: str, *, status: int = 200) -> HTMLResponse:
   .muted {{ color: #9aa4b5; font-size: 14px; }}
   .error {{ color: #ffb4a8; margin: 4px 0; }}
   label {{ display: grid; gap: 4px; margin: 14px 0; font-size: 14px; color: #c9d1de; }}
-  input {{ font: inherit; padding: 9px 12px; border-radius: 10px; border: 1px solid #2c3647;
+  input, select {{ font: inherit; padding: 9px 12px; border-radius: 10px; border: 1px solid #2c3647;
     background: #0d1118; color: inherit; }}
   label.check {{ display: flex; gap: 8px; align-items: center; }}
   .actions {{ display: flex; gap: 10px; margin-top: 20px; }}

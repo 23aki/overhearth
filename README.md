@@ -120,6 +120,25 @@ How a turn works:
 3. The reply is spoken with the browser's speech synthesis. Voice input uses the Web Speech API
    where available; typing always works.
 
+### Every home in its own language
+
+Each home has a language (chosen when linking; Japanese for the Tokyo and Osaka demo homes,
+English for Seattle and Austin, and residents speaking Japanese, Spanish, French, Korean,
+Portuguese, German and Chinese).
+
+- **In town**, every avatar speaks its home's language and understands the others: an English
+  avatar asks, a Japanese one answers in Japanese, and the conversation just works. Each line
+  carries an English gloss, shown as a small subtitle under the speech bubble.
+- **Know-how keeps its original language.** A home hears its report in its own language: the
+  lines come from localized templates (`backend/src/overhearth/i18n.py`) and the content is
+  translated for it by the same model the avatars talk with. Each translation is stored and
+  made once per language; the engine also translates the most-thanked tips ahead of time, so
+  `ask_town` can answer in the home's language without calling a model inside the tool.
+- **Search stays language-neutral**: tips keep English topics and keywords, and the Alexa layer
+  passes questions to `ask_town` in English.
+- **Alexa replies in the language of the person's latest message** (a guest may speak another
+  language than the home), and speech synthesis and recognition follow it.
+
 ### The town, as a little game world
 
 The town is drawn as a top-down pixel-art world with PixiJS (`web/townkit/`). All art is drawn

@@ -77,3 +77,15 @@ def test_events_keep_their_order_across_calls(dynamo):
     for name in ("a", "b", "c"):
         dynamo.add_town_events([TownEvent(tick=1, at=at, type="town", summary=name)])
     assert [e.summary for e in dynamo.town_events(limit=2)] == ["b", "c"]
+
+
+def test_refresh_updates_homes_and_tips_but_keeps_history(dynamo):
+    old = seeded_town()
+    egg = old.get_packet("tip_egg_spinach")
+    old.add_packet(egg.model_copy(update={"payload": {**egg.payload, "text": "old english text"}}))
+    dynamo.load_from(old)
+    thanks_before = len(dynamo.packets(kind="thanks"))
+    dynamo.refresh_from(seeded_town())
+    assert "ほうれん草" in dynamo.get_packet("tip_egg_spinach").payload["text"]
+    assert dynamo.get_household("hh_osaka").language == "ja"
+    assert len(dynamo.packets(kind="thanks")) == thanks_before

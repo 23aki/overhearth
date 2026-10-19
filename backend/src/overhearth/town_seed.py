@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from importlib import resources
 from typing import Any
 
-from overhearth import kinds
+from overhearth import i18n, kinds
 from overhearth.models import Household, Packet, PacketContext, utcnow
 from overhearth.store.memory import MemoryStore
 
@@ -38,7 +38,7 @@ def _packet(kind: str, origin: Household, payload: dict[str, Any], at: datetime,
         kind=kind,
         origin_household=origin.id,
         payload=kinds.get(kind).validate(payload),
-        context=PacketContext(region=origin.region, topics=extra.pop("topics", [])),
+        context=PacketContext(region=origin.region, topics=extra.pop("topics", []), language=origin.language),
         consented_at=at,
         created_at=at,
         **extra,
@@ -62,6 +62,7 @@ def seeded_town(*, seed: int = 42, now: datetime | None = None) -> MemoryStore:
             tier=raw["tier"],
             avatar_name=raw["avatar"],
             personality=raw.get("personality", []),
+            language=raw.get("language", "en"),
         )
         store.add_household(household, token=raw.get("token"))
         households.append(household)
@@ -75,7 +76,12 @@ def seeded_town(*, seed: int = 42, now: datetime | None = None) -> MemoryStore:
             packet = _packet(
                 "tip",
                 origin,
-                {"topic": tip["topic"], "text": tip["text"], "keywords": tip.get("keywords", [])},
+                {
+                    "topic": tip["topic"],
+                    "text": tip["text"],
+                    "keywords": tip.get("keywords", []),
+                    "phrase": tip["phrase"],
+                },
                 shared_at,
                 id=tip["id"],
                 topics=[tip["topic"]],
@@ -98,5 +104,6 @@ def seeded_town(*, seed: int = 42, now: datetime | None = None) -> MemoryStore:
         for theme in raw.get("gratitude", []):
             for _ in range(rng.randint(1, 2)):
                 said_at = _between(rng, now - timedelta(days=6), latest)
-                store.add_packet(_packet("thanks", origin, {"what_helped": data["themes"][theme]}, said_at))
+                what_helped = i18n.theme(theme, origin.language) or data["themes"][theme]
+                store.add_packet(_packet("thanks", origin, {"what_helped": what_helped}, said_at))
     return store

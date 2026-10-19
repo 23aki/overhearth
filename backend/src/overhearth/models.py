@@ -66,6 +66,8 @@ class Household(BaseModel):
     tier: HouseholdTier
     avatar_name: str
     personality: list[str] = Field(default_factory=list)
+    language: str = "en"
+    """The home's language: its avatar speaks it in town, and Alexa answers in it."""
 
 
 class KnowledgeEntry(BaseModel):

@@ -24,13 +24,27 @@ function recognitionCtor(): RecognitionCtor | undefined {
 
 export const canListen = (): boolean => recognitionCtor() !== undefined;
 
+/** BCP 47 tags for the languages homes can speak. */
+const LOCALES: Record<string, string> = {
+  en: "en-US",
+  ja: "ja-JP",
+  es: "es-MX",
+  fr: "fr-FR",
+  ko: "ko-KR",
+  pt: "pt-BR",
+  de: "de-DE",
+  zh: "zh-CN",
+};
+
+export const locale = (lang: string): string => LOCALES[lang] ?? "en-US";
+
 /** Listen for one utterance. Resolves with the transcript, or "" if nothing was heard. */
-export function listenOnce(lang = "en-US"): Promise<string> {
+export function listenOnce(lang = "en"): Promise<string> {
   const Ctor = recognitionCtor();
   if (!Ctor) return Promise.resolve("");
   return new Promise((resolve, reject) => {
     const recognition = new Ctor();
-    recognition.lang = lang;
+    recognition.lang = locale(lang);
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     let heard = "";
@@ -46,17 +60,33 @@ export function listenOnce(lang = "en-US"): Promise<string> {
   });
 }
 
-function pickVoice(): SpeechSynthesisVoice | undefined {
-  const voices = speechSynthesis.getVoices().filter((v) => v.lang.startsWith("en"));
-  return voices.find((v) => /natural|neural/i.test(v.name)) ?? voices.find((v) => v.lang === "en-US") ?? voices[0];
+function pickVoice(lang: string): SpeechSynthesisVoice | undefined {
+  const voices = speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith(lang));
+  return voices.find((v) => /natural|neural/i.test(v.name)) ?? voices.find((v) => v.lang === locale(lang)) ?? voices[0];
 }
 
-export function speak(text: string): Promise<void> {
+/**
+ * The language a reply is actually in. Alexa answers in the language the person spoke, which
+ * may not be the home's, so the voice follows the text: script for Japanese, Chinese and Korean,
+ * plain ASCII for English, the home's language otherwise.
+ */
+function spokenLanguage(text: string, home: string): string {
+  if (/[\uac00-\ud7af]/.test(text)) return "ko";
+  if (/[\u3040-\u30ff]/.test(text)) return "ja";
+  if (/[\u4e00-\u9fff]/.test(text)) return home === "ja" ? "ja" : "zh";
+  if (/^[\x00-\x7f\s]*$/.test(text)) return "en";
+  return home;
+}
+
+/** Speak a reply, in the voice of the language it is in. */
+export function speak(text: string, lang = "en"): Promise<void> {
   if (!("speechSynthesis" in window) || !text) return Promise.resolve();
   speechSynthesis.cancel();
   return new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(text);
-    const voice = pickVoice();
+    const spoken = spokenLanguage(text, lang);
+    utterance.lang = locale(spoken);
+    const voice = pickVoice(spoken);
     if (voice) utterance.voice = voice;
     utterance.rate = 1.02;
     // Some browsers never fire onend (no voices installed); don't hang the conversation.

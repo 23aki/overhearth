@@ -10,6 +10,7 @@ model's JSON in `data`, so DynamoDB never has to understand the models:
 | REPORT              | household id               | the household's pending report          |
 | HEARD               | household id               | the report the household heard last     |
 | DELIVERY            | household id               | private delivery settings (email)       |
+| TRANSLATION#<key>   | language                   | stored translation of some fields       |
 | CARRIED             | household id               | packet ids the avatar carries           |
 | EVENT               | tick#seq#event id          | a town event                            |
 | CLOCK               | -                          | the town clock                          |
@@ -216,6 +217,13 @@ class DynamoStore:
         data = self._get("HEARD", household_id)
         return Report.model_validate_json(data) if data else None
 
+    def get_translation(self, key: str, language: str) -> dict[str, str] | None:
+        data = self._get(f"TRANSLATION#{key}", language)
+        return json.loads(data) if data else None
+
+    def put_translation(self, key: str, language: str, fields: dict[str, str]) -> None:
+        self._put(f"TRANSLATION#{key}", language, json.dumps(fields, ensure_ascii=False))
+
     def get_delivery(self, household_id: str) -> DeliverySettings | None:
         data = self._get("DELIVERY", household_id)
         return DeliverySettings.model_validate_json(data) if data else None
@@ -280,6 +288,31 @@ class DynamoStore:
     def is_empty(self) -> bool:
         return not self._query("HOUSEHOLD", limit=1)
 
+    def refresh_from(self, source: MemoryStore) -> int:
+        """Update households and tips in place from a seeded town (language, places, original text).
+
+        Thanks, reports and events stay as they are, so a running town keeps its history.
+        """
+        count = 0
+        with self.table.batch_writer() as batch:
+            for household in source.households():
+                batch.put_item(Item={"pk": "HOUSEHOLD", "sk": household.id, "data": household.model_dump_json()})
+                count += 1
+            for tip in source.packets(kind="tip"):
+                existing = self.get_packet(tip.id)
+                kept = tip.model_copy(update={"created_at": existing.created_at}) if existing else tip
+                batch.put_item(
+                    Item={
+                        "pk": "PACKET",
+                        "sk": tip.id,
+                        "data": kept.model_dump_json(),
+                        "kind": tip.kind,
+                        "origin": tip.origin_household,
+                    }
+                )
+                count += 1
+        return count
+
     def load_from(self, source: MemoryStore) -> None:
         """Copy a seeded in-memory town (households, tokens, packets, reports, events, clock)."""
         with self.table.batch_writer() as batch:
@@ -304,6 +337,10 @@ class DynamoStore:
                 batch.put_item(Item={"pk": "REPORT", "sk": report.household_id, "data": report.model_dump_json()})
             for household_id, carried in source._carried.items():
                 batch.put_item(Item={"pk": "CARRIED", "sk": household_id, "data": json.dumps(carried)})
+            for (key, language), fields in source._translations.items():
+                batch.put_item(
+                    Item={"pk": f"TRANSLATION#{key}", "sk": language, "data": json.dumps(fields, ensure_ascii=False)}
+                )
         self.add_town_events(source.town_events(limit=len(source._events) or 1))
         if source._tick:
             clock: dict[str, Any] = {"pk": "CLOCK", "sk": _NONE, "tick": source._tick}
@@ -335,8 +372,14 @@ def main() -> None:
     parser.add_argument("--table", required=True)
     parser.add_argument("--region", default="us-east-1")
     parser.add_argument("--force", action="store_true", help="seed even if the table already has households")
+    parser.add_argument(
+        "--refresh", action="store_true", help="only update households and tips in place, keeping the town's history"
+    )
     args = parser.parse_args()
     store = DynamoStore(args.table, region=args.region)
+    if args.refresh:
+        print(f"refreshed {store.refresh_from(seeded_town())} households and tips in {args.table}")
+        return
     if not store.is_empty() and not args.force:
         raise SystemExit(f"{args.table} already has households; pass --force to seed anyway")
     store.load_from(seeded_town())

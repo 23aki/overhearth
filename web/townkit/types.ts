@@ -6,6 +6,8 @@ export interface Home {
   avatar: string;
   tier: "demo" | "background" | "real" | string;
   region: string;
+  /** The home's language code: its avatar speaks it in town. */
+  language?: string;
   /** How often know-how from this home was thanked. */
   glow: number;
 }
@@ -13,6 +15,10 @@ export interface Home {
 export interface Line {
   speaker: string;
   text: string;
+  /** Language code of the line. */
+  lang?: string;
+  /** English translation, for lines not in English. */
+  gloss?: string | null;
 }
 
 export interface HandedItem {
