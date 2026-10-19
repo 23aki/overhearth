@@ -103,6 +103,8 @@ export function buildLayout(homeIds: string[]): Layout {
   const sites: Lot[] = [];
   const homeLots: Lot[] = [];
   candidates.forEach((lot, i) => (sites.length < SITES && i % 3 === 2 ? sites : homeLots).push(lot));
+  // A small town has fewer lots: the ones no home needs go to landmarks too.
+  while (sites.length < SITES && homeLots.length > homeIds.length) sites.push(homeLots.pop()!);
   const lots = new Map<string, Lot>();
   homeIds.forEach((id, i) => {
     if (homeLots[i]) lots.set(id, homeLots[i]);
