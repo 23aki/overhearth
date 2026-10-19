@@ -20,6 +20,7 @@ from overhearth.assistant import RateLimiter, TurnRequest, assistant_from_env, t
 from overhearth.delivery import Mailer, mailer_from_env
 from overhearth.engine import dialogue_from_env, run_tick
 from overhearth.mcp_server import build_server
+from overhearth.models import utcnow
 from overhearth.oauth import BearerGate, install_oauth_routes
 from overhearth.store import Store
 from overhearth.store.env import store_from_env
@@ -121,6 +122,12 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
         state = await anyio.to_thread.run_sync(store.town_state)
         return JSONResponse(state, headers={"Cache-Control": "no-store"})
 
+    @server.custom_route("/town/activity", methods=["GET"])
+    async def town_activity(_: Request) -> JSONResponse:
+        """Which homes are talking with their Alexa right now, for the watch page (polled often)."""
+        active = await anyio.to_thread.run_sync(lambda: store.activity(utcnow()))
+        return JSONResponse({"active": active}, headers={"Cache-Control": "no-store"})
+
     assistant = assistant_from_env()
     limiter = RateLimiter()
 
@@ -131,6 +138,7 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
         home = store.household_for_token(token) if scheme.lower() == "bearer" else None
         if home is None:
             return JSONResponse({"error": "This Alexa account is not linked to Overhearth yet."}, status_code=401)
+        store.mark_active(home.id, "talk", utcnow())
         if not limiter.allow(token):
             return JSONResponse({"error": "Too many requests. Try again later."}, status_code=429)
         raw = await request.body()

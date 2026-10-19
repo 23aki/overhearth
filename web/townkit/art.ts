@@ -54,6 +54,7 @@ export interface Art {
   heart: Texture;
   bulb: Texture;
   question: Texture;
+  envelope: Texture;
   glow: Texture;
 }
 
@@ -233,6 +234,18 @@ export function makeArt(): Art {
     const rows = ["0111110", "1100011", "0000011", "0000110", "0001100", "0001100", "0000000", "0001100", "0001100"];
     rows.forEach((row, y) => [...row].forEach((c, x) => c === "1" && rect(ctx, "#9db4ff", x, y)));
   });
+  const envelope = texture(9, 7, (ctx) => {
+    rect(ctx, "#f4f1e8", 0, 0, 9, 7);
+    rect(ctx, "#b9b2a3", 0, 0, 9, 1);
+    rect(ctx, "#b9b2a3", 0, 6, 9, 1);
+    rect(ctx, "#b9b2a3", 0, 0, 1, 7);
+    rect(ctx, "#b9b2a3", 8, 0, 1, 7);
+    for (let i = 0; i < 4; i++) {
+      rect(ctx, "#b9b2a3", 1 + i, 1 + i);
+      rect(ctx, "#b9b2a3", 7 - i, 1 + i);
+    }
+    rect(ctx, "#e8798b", 4, 4);
+  });
   const glow = texture(32, 32, (ctx) => {
     const g = ctx.createRadialGradient(16, 16, 0, 16, 16, 16);
     g.addColorStop(0, "rgba(255,255,255,1)");
@@ -240,5 +253,23 @@ export function makeArt(): Art {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, 32, 32);
   });
-  return { grass, road, plaza, tree, flowers, lamp, lampLight, bench, fountain, house, windows, avatar, heart, bulb, question, glow };
+  return {
+    grass,
+    road,
+    plaza,
+    tree,
+    flowers,
+    lamp,
+    lampLight,
+    bench,
+    fountain,
+    house,
+    windows,
+    avatar,
+    heart,
+    bulb,
+    question,
+    envelope,
+    glow,
+  };
 }

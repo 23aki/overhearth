@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Iterable
+from datetime import datetime, timedelta
 from typing import Any
 
 from overhearth.models import Household, KnowledgeEntry, Packet, ReportItem, TownEvent
@@ -60,6 +61,25 @@ def rank_knowledge(
         scored.append((score, entry.thanks_count, entry))
     scored.sort(key=lambda s: (s[0], s[1]), reverse=True)
     return [entry for _, _, entry in scored[:limit]]
+
+
+ACTIVE_FOR = timedelta(seconds=90)
+"""A home counts as talking with its Alexa until this long after the last exchange."""
+KIND_FOR = timedelta(seconds=30)
+"""What the talk is about (thanks, a question, ...) shows this long; after that it is just talk."""
+
+
+def describe_activity(records: dict[str, dict[str, Any]], now: datetime) -> dict[str, dict[str, Any]]:
+    """Homes talking with their Alexa right now: what about, and how long ago. Never the content."""
+    active: dict[str, dict[str, Any]] = {}
+    for household_id, record in records.items():
+        at = record["at"]
+        if now - at > ACTIVE_FOR:
+            continue
+        kind_at = record.get("kind_at")
+        kind = record.get("kind") if kind_at and at - kind_at <= KIND_FOR else "talk"
+        active[household_id] = {"kind": kind or "talk", "ago": max(0, int((now - at).total_seconds()))}
+    return active
 
 
 def merge_report_items(pending: list[ReportItem], new: list[ReportItem]) -> list[ReportItem]:

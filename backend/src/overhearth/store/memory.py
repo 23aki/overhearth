@@ -20,6 +20,7 @@ from overhearth.models import (
 from overhearth.store.common import (
     TOWN_VIEW_SCAN,
     build_town_state,
+    describe_activity,
     merge_report_items,
     rank_knowledge,
     token_hash,
@@ -38,6 +39,7 @@ class MemoryStore:
         self._heard: dict[str, Report] = {}
         self._delivery: dict[str, DeliverySettings] = {}
         self._translations: dict[tuple[str, str], dict[str, str]] = {}
+        self._activity: dict[str, dict[str, Any]] = {}
         self._packets: dict[str, Packet] = {}
         self._reports: dict[str, Report] = {}
         self._events: list[TownEvent] = []
@@ -160,6 +162,15 @@ class MemoryStore:
     def put_translation(self, key: str, language: str, fields: dict[str, str]) -> None:
         self._translations[(key, language)] = dict(fields)
 
+    def mark_active(self, household_id: str, kind: str, at: datetime) -> None:
+        record = self._activity.setdefault(household_id, {})
+        record["at"] = at
+        if kind != "talk":
+            record.update(kind=kind, kind_at=at)
+
+    def activity(self, now: datetime) -> dict[str, dict[str, Any]]:
+        return describe_activity(self._activity, now)
+
     def get_delivery(self, household_id: str) -> DeliverySettings | None:
         return self._delivery.get(household_id)
 
@@ -190,9 +201,10 @@ class MemoryStore:
 
     def town_state(self) -> dict[str, Any]:
         tip_origins = {p.id: p.origin_household for p in self.packets(kind="tip")}
-        return build_town_state(
+        state = build_town_state(
             self.households(),
             tip_origins,
             self.packets(kind="thanks"),
             self.town_events(limit=TOWN_VIEW_SCAN),
         )
+        return {**state, "active": self.activity(utcnow())}
