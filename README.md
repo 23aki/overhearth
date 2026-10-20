@@ -174,6 +174,27 @@ the picture from an image model (`gpt-image-2.5` by default, `OPENAI_API_KEY`).
 - Pictures are files served by the backend locally, and an S3 bucket behind CloudFront `/diary/`
   when deployed. Without an image key, diaries are text only.
 
+### The town grows with thanks
+
+The town gains experience from what happens in it: thanks (x2), know-how shared (x3),
+questions (x1) and every chat between avatars (x1). Each level builds a landmark on one of the
+lots kept for them near the plaza. Which landmark depends on what the town has thanked most:
+thanks for cooking tips build a bakery, thanks for kids' tips a playground. There are eleven
+(bakery, playground, library, garden, clinic, café, bathhouse, music stage, market, workshop,
+dog park), then festival lanterns over the plaza. After that, each level makes one landmark
+bigger (a clock tower on the library, a greenhouse in the garden, a second floor on the
+clinic...), again the most thanked first, up to level 24. So every town ends up looking like
+what its people found helpful. With the demo town's few dozen homes, every landmark stands
+after about a week, and the last one grows about four weeks after that.
+
+- The HUD on the map shows the town's level, the progress to the next landmark and the topic
+  the town thanks most. The next lot shows scaffolding.
+- When a tick builds or enlarges a landmark, the replay ends on it: the camera goes to the lot
+  and the landmark appears with a little party. Bigger landmarks carry a ★ by their name.
+- Alexa tells each demo and linked home the news in its language ("町にパン屋ができました！料理のコツへの
+  感謝がきっかけです。"), right after thanks that came back. The day's diaries can mention it too.
+- An existing town starts quietly at the level its history earned (`backend/src/overhearth/growth.py`).
+
 ### The town view (MCP App)
 
 Say "show me the town". `open_town` points at the `ui://overhearth/town.html` resource, and the page

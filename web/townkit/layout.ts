@@ -1,6 +1,7 @@
 /**
  * The town map: rows of houses facing horizontal roads, a few vertical roads, and a plaza with
- * a fountain in the middle. Everything is derived from the list of homes, so the same town
+ * a fountain in the middle. Among the lots nearest the plaza, some are kept for the landmarks
+ * the town builds as it grows. Everything is derived from the list of homes, so the same town
  * looks the same everywhere.
  */
 
@@ -32,6 +33,8 @@ export interface Layout {
   height: number;
   ground: Ground[][];
   lots: Map<string, Lot>;
+  /** Lots kept for landmarks, in the order the town builds them (nearest the plaza first). */
+  sites: Lot[];
   plaza: { x: number; y: number; w: number; h: number };
   fountain: Point;
   decor: Decor[];
@@ -41,6 +44,8 @@ const LOT_STEP = 4; // 3 tiles of house + 1 tile of gap
 const ROW_STEP = 6; // 3 tiles of house, the road, 2 tiles of garden
 const COLUMNS = 10;
 const WIDTH = 2 + COLUMNS * LOT_STEP + 2;
+/** Landmarks that take a lot (the festival lanterns hang over the plaza instead). */
+export const SITES = 11;
 
 /** A small deterministic random generator, so decorations don't move between reloads. */
 export function seeded(seed: string): () => number {
@@ -62,7 +67,7 @@ export function lotOrder(homes: { id: string; tier: string }[], viewer?: string)
 }
 
 export function buildLayout(homeIds: string[]): Layout {
-  const rows = Math.max(3, Math.ceil((homeIds.length + 4) / COLUMNS) + 1);
+  const rows = Math.max(3, Math.ceil((homeIds.length + SITES + 4) / COLUMNS) + 1);
   const width = WIDTH;
   const height = 4 + rows * ROW_STEP;
   const ground: Ground[][] = Array.from({ length: height }, () => Array<Ground>(width).fill("grass"));
@@ -94,14 +99,20 @@ export function buildLayout(homeIds: string[]): Layout {
   candidates.sort(
     (a, b) => Math.hypot(a.x + 1 - center.x, a.y + 1 - center.y) - Math.hypot(b.x + 1 - center.x, b.y + 1 - center.y),
   );
+  // Every third lot from the plaza out is kept for a landmark, so they spread among the homes.
+  const sites: Lot[] = [];
+  const homeLots: Lot[] = [];
+  candidates.forEach((lot, i) => (sites.length < SITES && i % 3 === 2 ? sites : homeLots).push(lot));
+  // A small town has fewer lots: the ones no home needs go to landmarks too.
+  while (sites.length < SITES && homeLots.length > homeIds.length) sites.push(homeLots.pop()!);
   const lots = new Map<string, Lot>();
   homeIds.forEach((id, i) => {
-    if (candidates[i]) lots.set(id, candidates[i]);
+    if (homeLots[i]) lots.set(id, homeLots[i]);
   });
 
   // Decoration on free grass: trees in the gardens, flowers, lamps along the roads.
   const used = new Set<string>();
-  for (const lot of lots.values()) for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) used.add(`${lot.x + dx},${lot.y + dy}`);
+  for (const lot of [...lots.values(), ...sites]) for (let dy = 0; dy < 3; dy++) for (let dx = 0; dx < 3; dx++) used.add(`${lot.x + dx},${lot.y + dy}`);
   const rand = seeded(`decor:${homeIds.length}`);
   const decor: Decor[] = [];
   for (let y = 0; y < height; y++) {
@@ -114,7 +125,7 @@ export function buildLayout(homeIds: string[]): Layout {
   }
   for (const y of roadRows) for (let x = 3; x < width - 3; x += 8) if (ground[y - 1]?.[x] === "grass" && !used.has(`${x},${y - 1}`)) decor.push({ kind: "lamp", x, y: y - 1 });
   decor.push({ kind: "bench", x: plaza.x + 1, y: plaza.y + 1 }, { kind: "bench", x: plaza.x + plaza.w - 2, y: plaza.y + 1 });
-  return { width, height, ground, lots, plaza, fountain, decor };
+  return { width, height, ground, lots, sites, plaza, fountain, decor };
 }
 
 /** Shortest walk over roads and the plaza (breadth-first; the map is small). */

@@ -33,7 +33,7 @@ READ_ONLY = ToolAnnotations(read_only_hint=True, destructive_hint=False, open_wo
 REPORT_ONCE = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False)
 """town_report marks what it read out as heard, so the next report only has news."""
 
-REPORT_PRIORITY = {"thanks_return": 0, "diary": 1, "answer": 2, "tip": 3, "question": 4, "trend": 5}
+REPORT_PRIORITY = {"thanks_return": 0, "growth": 1, "diary": 2, "answer": 3, "tip": 4, "question": 5, "trend": 6}
 MAX_SPOKEN_ITEMS = 4
 """Keeps the spoken report well under the 30 second limit for an Alexa+ voice response."""
 APPEND_ONLY = ToolAnnotations(read_only_hint=False, destructive_hint=False, idempotent_hint=False)
@@ -108,11 +108,30 @@ class ActiveHome(BaseModel):
     ago: int = Field(description="Seconds since the last exchange.")
 
 
+class Landmark(BaseModel):
+    kind: str = Field(description="bakery, library, garden, clinic, playground, cafe, ...")
+    level: int = Field(description="The town level that built it.")
+    at: str
+
+
+class TownGrowth(BaseModel):
+    level: int
+    xp: int = Field(description="Town experience from thanks (x2), shared know-how (x3) and questions (x1).")
+    level_xp: int = Field(description="Experience at which the current level started.")
+    next_xp: int | None = Field(description="Experience the next level needs; null at the top level.")
+    landmarks: list[Landmark] = Field(default_factory=list)
+    upgrades: list[Landmark] = Field(
+        default_factory=list, description="Landmarks made bigger once every landmark stands (the level that did it)."
+    )
+    leading: str | None = Field(default=None, description="The landmark kind the most thanked topic points to.")
+
+
 class TownState(BaseModel):
     viewer: str = Field(description="The household looking at the town.")
     homes: list[TownHome]
     events: list[TownEvent]
     active: dict[str, ActiveHome] = Field(default_factory=dict)
+    growth: TownGrowth | None = None
 
 
 def _household(ctx: Context, store: Store, activity: str | None = None) -> Household:

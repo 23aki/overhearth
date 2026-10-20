@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import copy
 from datetime import datetime, timedelta
 from typing import Any
 
+from overhearth import growth
 from overhearth.models import (
     AuthGrant,
     DeliverySettings,
@@ -42,6 +44,7 @@ class MemoryStore:
         self._translations: dict[tuple[str, str], dict[str, str]] = {}
         self._activity: dict[str, dict[str, Any]] = {}
         self._diaries: dict[str, dict[str, Diary]] = {}
+        self._growth: dict[str, Any] | None = None
         self._packets: dict[str, Packet] = {}
         self._reports: dict[str, Report] = {}
         self._events: list[TownEvent] = []
@@ -183,6 +186,12 @@ class MemoryStore:
         days = self._diaries.get(scope, {})
         return days[max(days)] if days else None
 
+    def get_growth(self) -> dict[str, Any] | None:
+        return copy.deepcopy(self._growth)
+
+    def put_growth(self, record: dict[str, Any]) -> None:
+        self._growth = copy.deepcopy(record)
+
     def get_delivery(self, household_id: str) -> DeliverySettings | None:
         return self._delivery.get(household_id)
 
@@ -212,11 +221,11 @@ class MemoryStore:
         self._events.extend(events)
 
     def town_state(self) -> dict[str, Any]:
-        tip_origins = {p.id: p.origin_household for p in self.packets(kind="tip")}
+        packets = self.packets()
         state = build_town_state(
             self.households(),
-            tip_origins,
-            self.packets(kind="thanks"),
+            {p.id: p.origin_household for p in packets if p.kind == "tip"},
+            [p for p in packets if p.kind == "thanks"],
             self.town_events(limit=TOWN_VIEW_SCAN),
         )
-        return {**state, "active": self.activity(utcnow())}
+        return {**state, "active": self.activity(utcnow()), "growth": growth.summary(packets, self.get_growth())}

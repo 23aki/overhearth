@@ -101,11 +101,15 @@ class Diarist:
         day = [e for e in self.store.town_events(limit=1500) if local_date(e.at, timezone) == date]
         if scope == TOWN:
             return [e for e in day if e.type in ("encounter", "thanks_flow", "town")]
-        return [e for e in day if scope in e.actors and e.type in ("encounter", "thanks_flow", "exchange")]
+        mine = ("encounter", "thanks_flow", "exchange")
+        return [e for e in day if e.type == "town" or (scope in e.actors and e.type in mine)]
 
     def _describe(self, events: list[TownEvent], home: Household | None) -> str:
         lines = []
-        for e in events[-14:]:
+        # A new landmark is the day's big news: always keep it, then the latest of the rest.
+        news = [e for e in events if e.type == "town"]
+        rest = [e for e in events if e.type != "town"]
+        for e in news + rest[-max(0, 14 - len(news)) :]:
             lines.append(f"- {e.summary}")
             if home and e.type == "encounter":
                 for line in (e.detail.get("lines") or [])[:4]:

@@ -3,12 +3,15 @@
  *
  * Avatars live by their homes and wander a little. A replay plays one town tick: avatars walk
  * out along the roads, meet halfway, say their lines in speech bubbles and hand things over;
- * then thanks travel home as hearts and the receiving home lights up.
+ * then thanks travel home as hearts and the receiving home lights up. As the town grows,
+ * landmarks go up on the lots kept for them; one built in the tick being replayed is revealed
+ * at the end, with the camera on it.
  */
 import { Application, Container, Graphics, Sprite, Text, TextStyle, type Texture } from "pixi.js";
 import { type Art, BODIES, ROOFS, makeArt, pick } from "./art";
+import { makeLandmarkArt, landmarkName } from "./landmarks";
 import { type Layout, type Lot, type Point, TILE, buildLayout, lotOrder, seeded, walkPath } from "./layout";
-import type { Home, TownEvent, TownState } from "./types";
+import { type Growth, type Home, type TownEvent, type TownState, latestTick } from "./types";
 
 export interface Activity {
   /** talk, thanks, ask, share, news, mail, town */
@@ -81,6 +84,32 @@ const GLOSS = new TextStyle({
   breakWords: true,
   lineHeight: 7,
 });
+const HUD_TEXT = new TextStyle({
+  fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+  fontSize: 13,
+  fontWeight: "700",
+  fill: "#ffffff",
+});
+const HUD_SMALL = new TextStyle({
+  fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+  fontSize: 10,
+  fill: "#d7deea",
+});
+/** What each landmark's topic is called on the HUD ("the town's favorite"). */
+const TOPICS: Record<string, string> = {
+  bakery: "cooking",
+  playground: "kids",
+  library: "reading & study",
+  garden: "plants & moving",
+  clinic: "health & care",
+  cafe: "keeping in touch",
+  bathhouse: "rest & sleep",
+  stage: "music",
+  market: "shopping & saving",
+  workshop: "fixing & work",
+  petpark: "pets",
+};
+
 const FLOAT = new TextStyle({
   fontFamily: "ui-monospace, Menlo, Consolas, monospace",
   fontSize: 9,
@@ -369,8 +398,10 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
   host.appendChild(app.canvas);
 
   const art = makeArt();
+  const places = makeLandmarkArt();
   const world = new Container();
-  app.stage.addChild(world);
+  const hud = new Container();
+  app.stage.addChild(world, hud);
   const ground = new Container();
   const objects = new Container();
   const night = new Graphics();
@@ -399,6 +430,15 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
   let strollTimer = 2000;
   const camera = { x: 0, y: 0, zoom: 1 };
   const lamps: Sprite[] = [];
+  /** Landmark sprites on their lots, their name labels and the lanterns: redrawn as the town grows. */
+  let placeNodes: Container[] = [];
+  const siteSprites = new Map<string, Sprite>();
+  /** Landmarks built in the latest tick, shown as building sites until the replay reveals them. */
+  const pending = new Set<string>();
+  const revealed = new Set<string>();
+  let growthKey = "";
+  /** Where the camera looks for a moment (a landmark being revealed). */
+  let spotlight: { x: number; y: number; until: number } | null = null;
 
   function fitZoom(): number {
     if (!layout) return 1;
@@ -485,6 +525,8 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
       avatar.sprite.on("pointertap", () => selectCallback?.(home));
       avatars.set(home.id, avatar);
     }
+    growthKey = "";
+    drawPlaces();
     updateLights();
     const zoom = fitZoom();
     camera.zoom = zoom;
@@ -501,6 +543,7 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
       view.aura.alpha = share * (0.25 + nightLevel * 0.35);
     }
     for (const lamp of lamps) lamp.alpha = nightLevel * 0.9;
+    for (const node of placeNodes) if (node.label === "lantern-glow") node.alpha = 0.2 + nightLevel * 0.8;
     if (layout) {
       night
         .clear()
@@ -516,6 +559,143 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
     if (h >= 17 && h < 19.5) return (h - 17) / 2.5;
     if (h >= 5 && h < 7) return 1 - (h - 5) / 2;
     return 1;
+  }
+
+  /** Landmarks on lots (in build order) and the festival lanterns, if the town has them. */
+  function builtPlaces(growth: Growth | null | undefined): { onLots: string[]; lanterns: boolean; bigger: Set<string> } {
+    const kinds = (growth?.landmarks ?? []).map((l) => l.kind);
+    const bigger = new Set((growth?.upgrades ?? []).map((l) => l.kind).filter((k) => !pending.has(`${k}+`)));
+    return { onLots: kinds.filter((k) => k !== "lanterns"), lanterns: kinds.includes("lanterns"), bigger };
+  }
+
+  function drawPlaces(): void {
+    if (!layout) return;
+    const { onLots, lanterns, bigger } = builtPlaces(state.growth);
+    const key = `${onLots.join(",")}|${lanterns}|${[...bigger].join(",")}|${[...pending].join(",")}`;
+    if (key === growthKey) return;
+    growthKey = key;
+    for (const node of placeNodes) node.destroy({ children: true });
+    placeNodes = [];
+    siteSprites.clear();
+    layout.sites.forEach((lot, i) => {
+      const kind = onLots[i];
+      const waiting = kind === undefined || pending.has(kind);
+      const sprite = new Sprite(
+        kind && !waiting
+          ? places.landmark(kind, bigger.has(kind))
+          : kind || i === onLots.length
+            ? places.scaffold
+            : places.site,
+      );
+      sprite.position.set(lot.x * TILE, lot.y * TILE);
+      sprite.zIndex = (lot.y + 3) * TILE;
+      objects.addChild(sprite);
+      placeNodes.push(sprite);
+      if (kind) siteSprites.set(kind, sprite);
+      if (kind && !waiting) {
+        const name = bigger.has(kind) ? `${landmarkName(kind)} ★` : landmarkName(kind);
+        const label = new Text({ text: name, style: LABEL, resolution: 4 });
+        label.anchor.set(0.5, 0);
+        label.position.set(lot.x * TILE + 24, lot.y * TILE + 46);
+        labels.addChild(label);
+        placeNodes.push(label);
+      }
+    });
+    if (lanterns && !pending.has("lanterns")) {
+      const { plaza } = layout;
+      const width = (plaza.w - 1) * TILE;
+      for (const y of [plaza.y * TILE - 2, (plaza.y + plaza.h - 1) * TILE + 2]) {
+        const string = new Sprite(places.lanterns(width));
+        string.position.set(plaza.x * TILE + TILE / 2, y);
+        string.zIndex = y + 18;
+        objects.addChild(string);
+        const glow = new Sprite(places.lanterns(width));
+        glow.position.copyFrom(string.position);
+        glow.blendMode = "add";
+        glow.label = "lantern-glow";
+        lights.addChild(glow);
+        placeNodes.push(string, glow);
+      }
+    }
+    updateLights();
+  }
+
+  /** Level, progress to the next landmark and the town's favorite topic, over the map. */
+  function drawHud(): void {
+    hud.removeChildren().forEach((c) => c.destroy());
+    const growth = state.growth;
+    if (!growth) return;
+    const count = growth.landmarks.length;
+    const grown = growth.upgrades?.length ?? 0;
+    const title = new Text({ text: `Town Lv ${growth.level}`, style: HUD_TEXT, resolution: 2 });
+    const builtText = count === 1 ? "1 place" : `${count} places`;
+    const favorite = growth.leading && TOPICS[growth.leading] ? ` · loves ${TOPICS[growth.leading]}` : "";
+    const grownText = grown ? ` · ${grown} grown bigger` : "";
+    const sub = new Text({ text: `${builtText} built with thanks${grownText}${favorite}`, style: HUD_SMALL, resolution: 2 });
+    const barWidth = Math.max(150, sub.width);
+    const share =
+      growth.next_xp === null ? 1 : (growth.xp - growth.level_xp) / Math.max(1, growth.next_xp - growth.level_xp);
+    const toGo = growth.next_xp === null ? "complete" : `${growth.next_xp - growth.xp} to next`;
+    const next = new Text({ text: toGo, style: HUD_SMALL, resolution: 2 });
+    const panel = new Graphics()
+      .roundRect(0, 0, barWidth + 16, 56, 6)
+      .fill({ color: 0x141a26, alpha: 0.72 })
+      .roundRect(8, 26, barWidth, 7, 3)
+      .fill({ color: 0x2c3446 })
+      .roundRect(8, 26, Math.max(4, barWidth * Math.min(1, share)), 7, 3)
+      .fill({ color: 0xffb547 });
+    title.position.set(8, 6);
+    next.position.set(barWidth + 8 - next.width, 9);
+    sub.position.set(8, 38);
+    hud.addChild(panel, title, next, sub);
+    hud.position.set(8, 8);
+    hud.scale.set(app.screen.width < 720 ? 0.8 : 1);
+  }
+
+  function sparkles(x: number, y: number): void {
+    const start = clock;
+    const bits = Array.from({ length: 14 }, (_, i) => {
+      const s = new Sprite(places.sparkle);
+      s.anchor.set(0.5);
+      s.tint = [0xffffff, 0xffe08a, 0xffb5c8][i % 3];
+      effects.addChild(s);
+      return { s, angle: (i / 14) * Math.PI * 2, speed: 24 + (i % 4) * 8 };
+    });
+    const step = () => {
+      const t = (clock - start) / 1000;
+      for (const b of bits) {
+        b.s.position.set(x + Math.cos(b.angle) * b.speed * t, y + Math.sin(b.angle) * b.speed * t - 20 * t + 26 * t * t);
+        b.s.alpha = Math.max(0, 1 - t / 1.4);
+        b.s.rotation = t * 3;
+      }
+      if (t > 1.4) {
+        app.ticker.remove(step);
+        bits.forEach((b) => b.s.destroy());
+      }
+    };
+    app.ticker.add(step);
+  }
+
+  /** A landmark the town just built: the camera goes to it, it appears with a little party. */
+  async function reveal(event: TownEvent, token: number, onCaption?: (t: string) => void): Promise<void> {
+    const kind = event.detail.landmark;
+    if (!kind || !layout) return;
+    const sprite = siteSprites.get(kind);
+    const { plaza } = layout;
+    const at = sprite
+      ? { x: sprite.x + 24, y: sprite.y + 24 }
+      : { x: (plaza.x + plaza.w / 2) * TILE, y: (plaza.y + plaza.h / 2) * TILE };
+    spotlight = { x: at.x, y: at.y, until: clock + 5200 };
+    onCaption?.(event.summary);
+    await sleep(1100);
+    if (token !== replayToken) return;
+    const key = event.detail.upgrade ? `${kind}+` : kind;
+    pending.delete(key);
+    revealed.add(key);
+    drawPlaces();
+    sparkles(at.x, at.y - 6);
+    burst(at.x, at.y - 10, `${event.detail.upgrade ? "BIGGER!" : "NEW!"} ${landmarkName(kind)}`);
+    await sleep(3600);
   }
 
   function door(homeId: string): Point | null {
@@ -692,6 +872,12 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
     setState(next) {
       const key = next.homes.map((h) => h.id).sort().join(",") + `|${next.viewer ?? ""}`;
       state = next;
+      const latest = latestTick(next);
+      for (const e of next.events) {
+        const kind = e.detail.landmark;
+        const key = e.detail.upgrade ? `${kind}+` : kind;
+        if (e.type === "town" && e.tick === latest && key && !revealed.has(key)) pending.add(key);
+      }
       if (key !== homesKey) {
         homesKey = key;
         build();
@@ -703,7 +889,9 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
           if (h) h.home = home;
         }
         updateLights();
+        drawPlaces();
       }
+      drawHud();
     },
 
     async replay(options = {}) {
@@ -722,7 +910,8 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
       const flows = events
         .filter((e) => e.type === "thanks_flow")
         .sort((a, b) => Number(a.detail.to === focus) - Number(b.detail.to === focus));
-      if (!encounters.length && !flows.length) {
+      const built = events.filter((e) => e.type === "town");
+      if (!encounters.length && !flows.length && !built.length) {
         options.onCaption?.("A quiet time in town.");
         return;
       }
@@ -741,8 +930,12 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
         if (token !== replayToken) return;
         await thanksFlow(e, e.detail.to === focus, options.onCaption);
       }
+      for (const e of built) {
+        if (token !== replayToken) return;
+        await reveal(e, token, options.onCaption);
+      }
       if (token === replayToken) {
-        const last = flows.find((e) => e.detail.to === focus) ?? featured[0];
+        const last = built.at(-1) ?? flows.find((e) => e.detail.to === focus) ?? featured[0];
         options.onCaption?.(last?.summary ?? `${encounters.length} meetings, ${flows.length} thanks returned.`);
       }
     },
@@ -827,10 +1020,12 @@ export async function createTownView(host: HTMLElement): Promise<TownView> {
     // Camera: the whole town, or close behind one avatar.
     if (layout) {
       const fit = fitZoom();
-      const target = followed ? avatars.get(followed) : undefined;
-      const goalZoom = target ? Math.max(fit, Math.min(3, fit * 2.6)) : fit;
+      const followedAvatar = followed ? avatars.get(followed) : undefined;
+      const spot = spotlight && spotlight.until > clock ? spotlight : null;
+      const target = spot ?? (followedAvatar ? { x: followedAvatar.x, y: followedAvatar.y - 20 } : undefined);
+      const goalZoom = target ? Math.max(fit, Math.min(3, fit * (spot ? 2.2 : 2.6))) : fit;
       const goalX = target ? target.x : (layout.width * TILE) / 2;
-      const goalY = target ? target.y - 20 : (layout.height * TILE) / 2;
+      const goalY = target ? target.y : (layout.height * TILE) / 2;
       const k = Math.min(1, ms / 350);
       camera.zoom += (goalZoom - camera.zoom) * k;
       camera.x += (goalX - camera.x) * k;
