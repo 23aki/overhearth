@@ -317,3 +317,9 @@ demo again.
 - Only what a person explicitly agrees to share leaves their home, and contact details are
   scrubbed before anything is stored.
 - All households in the bundled data are simulated.
+- Diary text and pictures are generated only from what happened in town that day, that is, from
+  what people agreed to share. Pictures are AI-generated and contain no text or real people.
+
+## License
+
+[MIT](LICENSE)
