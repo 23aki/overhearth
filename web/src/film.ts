@@ -436,16 +436,16 @@ function sceneOne(materials: Materials, host: HTMLElement, W: number, H: number)
 
   // Big, readable bubbles in the upper right, spoken toward the Echo Show.
   const ask = bubble("Alexa, what can I cook in ten minutes?", "bubble big");
-  ask.position.set(3.25, 2.3, 1.9);
+  ask.position.set(1.95, 2.2, 2.6);
   scene.add(ask);
   const thanks = bubble("Thank you, Alexa!", "bubble big");
-  thanks.position.set(3.25, 2.3, 1.9);
+  thanks.position.set(1.95, 2.2, 2.6);
   scene.add(thanks);
   const heart = bubble("♥", "emote big");
-  heart.position.set(1.9, 2.4, 2.5);
+  heart.position.set(1.15, 2.45, 2.75);
   scene.add(heart);
   const answer = bubble("Egg and spinach on rice! The most thanked quick dinner in town.", "bubble big alexa");
-  answer.position.set(3.25, 2.3, 1.9);
+  answer.position.set(3.05, 1.85, 1.3);
   scene.add(answer);
   const hello = bubble("♪", "emote big");
   hello.position.set(0, 0.8, 0);
@@ -495,7 +495,7 @@ function sceneOne(materials: Materials, host: HTMLElement, W: number, H: number)
           answer.visible = between(t, 4200, 8000);
           thanks.visible = between(t, 9400, 12400);
           heart.visible = between(t, 10000, 12400);
-          heart.position.y = 2.25 + span(t, 10000, 12400) * 0.35;
+          heart.position.y = 2.45 + span(t, 10000, 12400) * 0.35;
           caption.textContent = "Ten minutes later…";
           caption.classList.toggle("on", between(t, 8100, 9300));
 
@@ -559,7 +559,9 @@ function sceneTwo(materials: Materials, host: HTMLElement, W: number, H: number)
     who.group.rotation.y = Math.atan2(echoAt.x - stand.x, echoAt.z - stand.z);
     scene.add(who.group);
     const says = bubble(r.says, "bubble mid");
-    says.position.set(3.2, 2.25, 1.9);
+    says.position.set(1.85, 2.2, 2.75);
+    const away = new THREE.Vector3(-1.6, 0, 3.6);
+    const facing = Math.atan2(echoAt.x - stand.x, echoAt.z - stand.z);
     scene.add(says);
     const pal = creature(palColor);
     pal.group.scale.setScalar(PAL);
@@ -580,34 +582,37 @@ function sceneTwo(materials: Materials, host: HTMLElement, W: number, H: number)
       doorIn: doorAt.clone().add(new THREE.Vector3(0, 0, 0.02)),
     };
     const o = i * 280;
-    const at: ExitTimes = { pop: o + 3700, down: o + 4200, look: o + 4700, walk: o + 5200, enter: o + 6200, gone: o + 6600 };
+    const at: ExitTimes = { pop: o + 5000, down: o + 5500, look: o + 6000, walk: o + 6500, enter: o + 7400, gone: o + 7800 };
     return {
       ...base,
       update(t) {
         camera.fov = 44;
         camera.updateProjectionMatrix();
-        camera.position.set(0.75 + span(t, 0, 7000) * 0.15, 2.35, 5.6);
+        camera.position.set(0.75 + span(t, 0, 8500) * 0.15, 2.35, 5.6);
         camera.lookAt(3.2, 1.2, 1.4);
         const talking = between(t, o + 300, o + 2200);
         who.mouth.scale.y = talking && Math.floor(t / 130) % 2 ? 2.4 : 1;
-        const waving = between(t, o + 4700, o + 6200);
-        who.armR.rotation.x = waving ? -2.6 : 0;
-        who.armR.rotation.z = waving ? Math.sin(t / 140) * 0.35 : 0;
-        says.visible = between(t, o + 300, o + 2600);
-        echo.show(t < o + 300 ? "clock" : t < o + 1700 ? "listen" : t < o + 2600 ? "heart" : t < o + 3500 ? "pal" : t < o + 3800 ? "glow" : "clock", t);
+        // Thank you, then the person walks off; only then does the avatar show up on the screen.
+        const leave = span(t, o + 2500, o + 3900);
+        who.group.visible = leave < 1;
+        who.group.position.copy(stand).lerp(away, ease(leave));
+        who.group.rotation.y = leave > 0 ? Math.atan2(away.x - stand.x, away.z - stand.z) : facing;
+        who.group.position.y = leave > 0 && leave < 1 ? Math.abs(Math.sin(t / 120)) * 0.04 : 0;
+        says.visible = between(t, o + 300, o + 2400);
+        echo.show(t < o + 300 ? "clock" : t < o + 1500 ? "listen" : t < o + 3900 ? "heart" : t < o + 4800 ? "pal" : t < o + 5100 ? "glow" : "clock", t);
         const pose = exitPose(exit, t, at);
         pal.group.visible = pose.visible;
         pal.group.position.copy(pose.p);
         pal.group.scale.setScalar(pose.s);
         pal.group.rotation.y = pose.face;
-        const open = span(t, o + 4500, o + 5000);
-        const close = span(t, o + 6500, o + 7000);
-        door.group.visible = t >= o + 4500 && close < 1;
+        const open = span(t, o + 5800, o + 6300);
+        const close = span(t, o + 7700, o + 8200);
+        door.group.visible = t >= o + 5800 && close < 1;
         door.group.scale.setScalar(Math.max(0.001, 1.5 * ease(open) * (1 - ease(close))));
       },
     };
   });
-  return { panels, length: 7300 + (ROOMS.length - 1) * 280 };
+  return { panels, length: 8500 + (ROOMS.length - 1) * 280 };
 }
 
 // ---- run --------------------------------------------------------------------------------
