@@ -100,13 +100,25 @@ function injectCss(): void {
   document.head.appendChild(style);
 }
 
+/**
+ * A piece of HTML placed in the 3D scene. The renderer positions the outer element with an
+ * inline transform; the styled (and possibly animated) element is inside it, so a CSS
+ * animation on transform cannot move it away from its spot.
+ */
 function label(className: string, text = ""): CSS2DObject {
+  const outer = document.createElement("div");
   const div = document.createElement("div");
   div.className = className;
   div.textContent = text;
-  const object = new CSS2DObject(div);
+  outer.append(div);
+  const object = new CSS2DObject(outer);
   object.center.set(0.5, 1);
   return object;
+}
+
+/** The styled element of a label. */
+function face(object: CSS2DObject): HTMLElement {
+  return object.element.firstElementChild as HTMLElement;
 }
 
 function glowTexture(): THREE.CanvasTexture {
@@ -725,7 +737,7 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
       const sub = document.createElement("span");
       sub.className = "gloss";
       sub.textContent = clip(gloss);
-      object.element.append(sub);
+      face(object).append(sub);
     }
     object.position.set(0, 0.75, 0);
     avatar.group.add(object);
@@ -745,7 +757,7 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
   function fly(symbol: string, color: string, from: THREE.Vector3, to: THREE.Vector3, ms: number, height = 1.2): Promise<void> {
     const object = label("ot-fly", symbol);
     object.center.set(0.5, 0.5);
-    object.element.style.color = color;
+    face(object).style.color = color;
     effects.add(object);
     let t = 0;
     return new Promise((resolve) => {
@@ -1112,7 +1124,7 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
       if (on && avatar?.inside) {
         if (!h.talking || h.talkKind !== talking.kind) {
           const icon = { thanks: "♥", ask: "💡", share: "💡", mail: "✉" }[talking.kind] ?? "";
-          h.talk.element.innerHTML = "";
+          face(h.talk).innerHTML = "";
           const name = document.createElement("span");
           name.textContent = h.home.avatar;
           const i = document.createElement("span");
@@ -1120,7 +1132,7 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
           i.textContent = icon;
           const dots = document.createElement("span");
           dots.className = "dots";
-          h.talk.element.append(name, i, dots);
+          face(h.talk).append(name, i, dots);
           h.talkKind = talking.kind;
         }
         h.talking = true;
@@ -1158,6 +1170,11 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
       } else if (target) {
         goal = world(target.x, target.y).setY(0.4);
         goalDistance = Math.min(fit, options.followDistance ?? 13);
+        // Inside, talking with its person: keep the whole house and the bubble over it in view.
+        if (target.inside) {
+          goal.setY(1.7);
+          goalDistance = Math.min(fit, Math.max(goalDistance, 9.5));
+        }
       } else if (!controls || clock < recenterUntil) {
         goal = townCenter();
         goalDistance = fit;
