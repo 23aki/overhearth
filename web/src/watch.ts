@@ -2,7 +2,7 @@
  * The watch page: the whole town, live, without going through Alexa. Pick a home to follow its
  * avatar. New town time is replayed as soon as it happens.
  */
-import { createTownView } from "../townkit/scene";
+import { createTown } from "../townkit/view";
 import { type Home, type TownState, latestTick } from "../townkit/types";
 import { BACKEND_URL, apiHeaders } from "./config";
 
@@ -18,7 +18,7 @@ const status = $<HTMLSpanElement>("status");
 const caption = $<HTMLParagraphElement>("caption");
 const card = $<HTMLElement>("card");
 
-const town = await createTownView($("town"));
+const town = await createTown($("town"), { camera: "free" });
 let state: TownState | null = null;
 let shownTick = -1;
 

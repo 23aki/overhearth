@@ -141,10 +141,14 @@ Portuguese, German and Chinese).
 
 ### The town, as a little game world
 
-The town is drawn as a top-down pixel-art world with PixiJS (`web/townkit/`). All art is drawn
-in code. Houses stand along the roads around a plaza. Each home's avatar, a small round creature
-with Echo's light ring on its head, walks out to meet another avatar halfway, says its lines in
-speech bubbles and hands over tips and questions. Thanks then fly home as hearts, and the home
+The town is a 3D block world, a little diorama drawn with three.js (`web/townkit/scene3d.ts`,
+`voxel.ts`). All blocks and textures are drawn in code. Houses stand along the roads around a
+plaza with a fountain. Each home's avatar, a small block creature with Echo's light ring on its
+head, walks out to meet another avatar halfway, says its lines in speech bubbles and hands over
+tips and questions. Names, bubbles, subtitles and the HUD are HTML over the canvas, so text stays
+sharp. The watch page can turn and zoom the diorama; inside Alexa the camera is fixed and follows
+your avatar. The earlier 2D pixel-art view (PixiJS) is still there with `?view=2d`, and is used
+where WebGL 2 is missing. Thanks then fly home as hearts, and the home
 that receives them lights up. Windows glow with how often a home's know-how was thanked, and
 the town follows day and night.
 
