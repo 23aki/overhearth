@@ -34,6 +34,12 @@ import {
 export interface VoxelOptions {
   /** "fixed": an angled diorama view (inside Alexa). "free": the viewer can turn and zoom a little. */
   camera?: "fixed" | "free";
+  /** Turn slowly around the town (for filming). */
+  autoRotate?: boolean;
+  /** Closer (< 1) or farther than fitting the whole town. */
+  zoom?: number;
+  /** How far the camera stays from a followed avatar. */
+  followDistance?: number;
 }
 
 const ACTIVE_MS = 90_000;
@@ -114,6 +120,62 @@ function glowTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(canvas);
 }
 
+/** The block creature every avatar is: a body with eyes and cheeks, Echo's light ring on top, two feet. */
+export function creature(color: THREE.ColorRepresentation): { group: THREE.Group; body: THREE.Mesh; feet: THREE.Mesh[] } {
+  const group = new THREE.Group();
+  const mat = (c: THREE.ColorRepresentation) => new THREE.MeshLambertMaterial({ color: c });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.3, 0.32), mat(color));
+  body.position.y = 0.21;
+  body.castShadow = true;
+  const eye = new THREE.BoxGeometry(0.06, 0.07, 0.02);
+  const dark = new THREE.MeshBasicMaterial({ color: 0x1d2230 });
+  for (const dx of [-0.08, 0.08]) {
+    const e = new THREE.Mesh(eye, dark);
+    e.position.set(dx, 0.04, 0.165);
+    body.add(e);
+    const shine = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 0.01), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    shine.position.set(dx - 0.015, 0.06, 0.177);
+    body.add(shine);
+    const cheek = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.01), new THREE.MeshBasicMaterial({ color: 0xe8798b }));
+    cheek.position.set(dx * 1.7, -0.03, 0.165);
+    body.add(cheek);
+  }
+  // Echo's light ring: four bars around the top.
+  const ring = new THREE.MeshBasicMaterial({ color: 0x34c6f4 });
+  for (const [w, d, x, z] of [[0.3, 0.04, 0, 0.12], [0.3, 0.04, 0, -0.12], [0.04, 0.2, 0.13, 0], [0.04, 0.2, -0.13, 0]]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(w, 0.035, d), ring);
+    bar.position.set(x, 0.17, z);
+    body.add(bar);
+  }
+  const feet: THREE.Mesh[] = [];
+  const foot = new THREE.BoxGeometry(0.1, 0.06, 0.12);
+  for (const dx of [-0.09, 0.09]) {
+    const f = new THREE.Mesh(foot, mat(0x3a3346));
+    f.position.set(dx, 0.03, 0.02);
+    f.castShadow = true;
+    feet.push(f);
+    group.add(f);
+  }
+  group.add(body);
+  return { group, body, feet };
+}
+
+/** A door of light standing on the ground, facing +z: where avatars come out into the town. */
+export function lightDoor(): { group: THREE.Group; panel: THREE.Mesh } {
+  const group = new THREE.Group();
+  const wood = new THREE.MeshLambertMaterial({ color: 0x5c3f26 });
+  for (const [w, h, x, y] of [[0.08, 1.2, -0.38, 0.6], [0.08, 1.2, 0.38, 0.6], [0.84, 0.08, 0, 1.2]]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.1), wood);
+    bar.position.set(x, y, 0);
+    bar.castShadow = true;
+    group.add(bar);
+  }
+  const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.68, 1.14), new THREE.MeshBasicMaterial({ color: 0xc9f3ff, transparent: true, opacity: 0.95, side: THREE.DoubleSide }));
+  panel.position.set(0, 0.58, 0);
+  group.add(panel);
+  return { group, panel };
+}
+
 /** An avatar: a little block creature with Echo's light ring on top. */
 class Avatar {
   readonly group = new THREE.Group();
@@ -131,44 +193,18 @@ class Avatar {
   private arrive: (() => void) | null = null;
   private feet: THREE.Mesh[] = [];
   private step = 0;
+  /** Height above the ground (dropping in from the sky). */
+  lift = 0;
+  /** Not in town yet (waiting to arrive). */
+  hidden = false;
 
   constructor(home: Home, readonly door: Point, parent: THREE.Object3D) {
     this.home = home;
-    const color = new THREE.Color(pick(BODIES, home.id));
-    const mat = (c: THREE.ColorRepresentation) => new THREE.MeshLambertMaterial({ color: c });
-    this.body = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.3, 0.32), mat(color));
-    this.body.position.y = 0.21;
-    this.body.castShadow = true;
+    const model = creature(pick(BODIES, home.id));
+    this.body = model.body;
+    this.feet = model.feet;
+    this.group.add(...model.group.children);
     this.body.userData.homeId = home.id;
-    const eye = new THREE.BoxGeometry(0.06, 0.07, 0.02);
-    const dark = new THREE.MeshBasicMaterial({ color: 0x1d2230 });
-    for (const dx of [-0.08, 0.08]) {
-      const e = new THREE.Mesh(eye, dark);
-      e.position.set(dx, 0.04, 0.165);
-      this.body.add(e);
-      const shine = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 0.01), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-      shine.position.set(dx - 0.015, 0.06, 0.177);
-      this.body.add(shine);
-      const cheek = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.01), new THREE.MeshBasicMaterial({ color: 0xe8798b }));
-      cheek.position.set(dx * 1.7, -0.03, 0.165);
-      this.body.add(cheek);
-    }
-    // Echo's light ring: four bars around the top.
-    const ring = new THREE.MeshBasicMaterial({ color: 0x34c6f4 });
-    for (const [w, d, x, z] of [[0.3, 0.04, 0, 0.12], [0.3, 0.04, 0, -0.12], [0.04, 0.2, 0.13, 0], [0.04, 0.2, -0.13, 0]]) {
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(w, 0.035, d), ring);
-      bar.position.set(x, 0.17, z);
-      this.body.add(bar);
-    }
-    const foot = new THREE.BoxGeometry(0.1, 0.06, 0.12);
-    for (const dx of [-0.09, 0.09]) {
-      const f = new THREE.Mesh(foot, mat(0x3a3346));
-      f.position.set(dx, 0.03, 0.02);
-      f.castShadow = true;
-      this.feet.push(f);
-      this.group.add(f);
-    }
-    this.group.add(this.body);
     this.name = label("ot-name", home.avatar);
     this.name.position.set(0, 0.62, 0);
     this.group.add(this.name);
@@ -217,6 +253,13 @@ class Avatar {
   /** Where the avatar waits at home: a step up from the road, right in front of its door. */
   homeSpot(): { x: number; y: number } {
     return { x: this.door.x * TILE + TILE / 2, y: this.door.y * TILE - 4 };
+  }
+
+  /** Show at once (no fade), at full size. */
+  appear(): void {
+    this.hidden = false;
+    this.fade = 1;
+    this.sync();
   }
 
   /** In the doorway, where it fades out going in. */
@@ -284,14 +327,14 @@ class Avatar {
     this.body.position.y = 0.21 + hop;
     this.feet[0].position.z = moving ? 0.02 + Math.sin(this.step / 110) * 0.05 : 0.02;
     this.feet[1].position.z = moving ? 0.02 - Math.sin(this.step / 110) * 0.05 : 0.02;
-    const goal = this.inside ? 0 : 1;
+    const goal = this.inside || this.hidden ? 0 : 1;
     this.fade += (goal - this.fade) * Math.min(1, ms / 200);
     this.sync();
   }
 
   sync(): void {
     const p = world(this.x, this.y);
-    this.group.position.set(p.x, 0, p.z);
+    this.group.position.set(p.x, this.lift, p.z);
     this.group.scale.setScalar(Math.max(0.001, this.fade) * 1.35);
     this.group.visible = this.fade > 0.05;
     this.name.visible = this.group.visible;
@@ -345,6 +388,8 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
   scene.add(hemi, sun, sun.target);
   const controls = free ? new OrbitControls(camera, renderer.domElement) : null;
   if (controls) {
+    controls.autoRotate = Boolean(options.autoRotate);
+    controls.autoRotateSpeed = 0.5;
     controls.enableDamping = true;
     controls.minPolarAngle = 0.35;
     controls.maxPolarAngle = 1.05;
@@ -396,7 +441,7 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
     const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     const byWidth = (layout.width * 0.58) / (t * aspect);
     const byHeight = (layout.height * 0.62) / t;
-    return Math.max(byWidth, byHeight);
+    return Math.max(byWidth, byHeight) * (options.zoom ?? 1);
   }
 
   function addVoxels(v: Voxels, parent: THREE.Object3D): THREE.InstancedMesh[] {
@@ -846,6 +891,78 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
     await sleep(3800);
   }
 
+  /** A door of light opens on the road by the house, and the avatar steps out to its door. */
+  async function throughDoor(a: Avatar): Promise<void> {
+    const road = center(a.door);
+    const at = world(road.x, road.y + 3);
+    const { group: portal, panel } = lightDoor();
+    portal.position.copy(at);
+    const size = 1.4;
+    portal.scale.setScalar(0.001);
+    effects.add(portal);
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowMap, color: 0x9ae6ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
+    glow.position.set(at.x, 0.6, at.z + 0.05);
+    glow.scale.setScalar(2.6);
+    effects.add(glow);
+    let t = 0;
+    await new Promise<void>((resolve) =>
+      animate((dt) => {
+        t = Math.min(1, t + dt / 500);
+        const s = 1 + Math.sin(t * Math.PI) * 0.12;
+        portal.scale.setScalar(Math.max(0.001, t * s * size));
+        (glow.material as THREE.SpriteMaterial).opacity = t * 0.9;
+        if (t >= 1) resolve();
+        return t < 1;
+      }),
+    );
+    await sleep(350);
+    a.x = road.x;
+    a.y = road.y + 3;
+    a.group.rotation.y = Math.PI;
+    a.appear();
+    sparkles(at.clone().setY(0.6));
+    await a.walkTo([road, a.homeSpot()], WALK_SPEED * 0.9);
+    a.busy = false;
+    t = 1;
+    animate((dt) => {
+      t = Math.max(0, t - dt / 450);
+      portal.scale.setScalar(Math.max(0.001, t * size));
+      (glow.material as THREE.SpriteMaterial).opacity = t * 0.9;
+      (panel.material as THREE.MeshBasicMaterial).opacity = t * 0.95;
+      if (t <= 0) {
+        effects.remove(portal, glow);
+        return false;
+      }
+      return true;
+    });
+  }
+
+  /** The avatar drops in from the sky onto its doorstep, with a little puff. */
+  async function fromSky(a: Avatar): Promise<void> {
+    const spot = a.homeSpot();
+    a.x = spot.x;
+    a.y = spot.y;
+    a.group.rotation.y = 0;
+    a.lift = 9;
+    a.appear();
+    let t = 0;
+    await new Promise<void>((resolve) =>
+      animate((dt) => {
+        t = Math.min(1, t + dt / 1500);
+        a.lift = 9 * (1 - t * t);
+        if (t >= 1) {
+          a.lift = 0;
+          resolve();
+          return false;
+        }
+        return true;
+      }),
+    );
+    a.sync();
+    sparkles(world(spot.x, spot.y).setY(0.15));
+    a.busy = false;
+  }
+
   const view: TownView = {
     setState(next) {
       const key = next.homes.map((h) => h.id).sort().join(",") + `|${next.viewer ?? ""}`;
@@ -936,6 +1053,23 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
     setActivity(active: Record<string, Activity>) {
       activity.clear();
       for (const [id, a] of Object.entries(active)) activity.set(id, { kind: a.kind, until: clock + Math.max(0, ACTIVE_MS - a.ago * 1000) });
+    },
+
+    async arrive(ids, delayMs = 0) {
+      const chosen = ids ? ids.map((id) => avatars.get(id)).filter((a): a is Avatar => a !== undefined) : [...avatars.values()];
+      for (const a of chosen) {
+        a.goHome();
+        a.hidden = true;
+        a.busy = true;
+        a.sync();
+      }
+      await sleep(delayMs);
+      if (ids) {
+        await Promise.all(chosen.map((a, i) => sleep(i * 600).then(() => throughDoor(a))));
+      } else {
+        const order = [...chosen].sort((a, b) => seeded(a.home.id)() - seeded(b.home.id)());
+        await Promise.all(order.map((a, i) => sleep(400 + i * 170).then(() => fromSky(a))));
+      }
     },
 
     destroy() {
@@ -1046,7 +1180,7 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
         goalDistance = Math.min(fit, 16);
       } else if (target) {
         goal = world(target.x, target.y).setY(0.4);
-        goalDistance = Math.min(fit, 13);
+        goalDistance = Math.min(fit, options.followDistance ?? 13);
       } else if (!controls || clock < recenterUntil) {
         goal = townCenter();
         goalDistance = fit;

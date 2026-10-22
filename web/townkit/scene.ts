@@ -47,6 +47,11 @@ export interface TownView {
    * shows over the house, and they come back out once the home has been quiet for a while.
    */
   setActivity(active: Record<string, Activity>): void;
+  /**
+   * Avatars arriving in town (3D only, for the demo film): one home's avatar steps out of a
+   * door of light by its house; with null, everyone drops in from the sky.
+   */
+  arrive?(homes: string[] | null, delayMs?: number): Promise<void>;
   destroy(): void;
 }
 
