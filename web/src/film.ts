@@ -295,6 +295,22 @@ function lights(scene: THREE.Scene, warm = true): void {
   scene.add(lamp);
 }
 
+const HEART_SVG =
+  '<svg viewBox="0 0 64 58" xmlns="http://www.w3.org/2000/svg">' +
+  '<path d="M32 55C32 55 4 37 4 19.5C4 10 11.5 3.5 20 3.5C25.5 3.5 29.6 6.4 32 10.4C34.4 6.4 38.5 3.5 44 3.5C52.5 3.5 60 10 60 19.5C60 37 32 55 32 55Z" fill="#ff5c84" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>' +
+  '<ellipse cx="19" cy="17" rx="6.5" ry="4.5" transform="rotate(-35 19 17)" fill="#fff" opacity=".7"/></svg>';
+
+/** A plump pink heart (not a text glyph), placed in the scene. */
+function heartIcon(): CSS2DObject {
+  const div = document.createElement("div");
+  div.className = "heart";
+  div.innerHTML = HEART_SVG;
+  const object = new CSS2DObject(div);
+  object.center.set(0.5, 0.5);
+  object.visible = false;
+  return object;
+}
+
 function bubble(text: string, className = "bubble"): CSS2DObject {
   const div = document.createElement("div");
   div.className = className;
@@ -441,9 +457,15 @@ function sceneOne(materials: Materials, host: HTMLElement, W: number, H: number)
   const thanks = bubble("Thank you, Alexa!", "bubble big");
   thanks.position.set(1.95, 2.2, 2.6);
   scene.add(thanks);
-  const heart = bubble("♥", "emote big");
-  heart.position.set(1.15, 2.45, 2.75);
-  scene.add(heart);
+  // After the thank-you, three hearts float from beside the person's head to the Echo Show.
+  const hearts = [0, 1, 2].map(() => {
+    const h = heartIcon();
+    scene.add(h);
+    return h;
+  });
+  const heartFrom = new THREE.Vector3(2.25, 1.62, 2.35);
+  const heartTo = echoAt.clone().add(new THREE.Vector3(0, 0.25, 0.15));
+  const heartPeak = new THREE.Vector3(3.15, 2.35, 1.9);
   const answer = bubble("Egg and spinach on rice! The most thanked quick dinner in town.", "bubble big alexa");
   answer.position.set(3.05, 1.85, 1.3);
   scene.add(answer);
@@ -494,8 +516,21 @@ function sceneOne(materials: Materials, host: HTMLElement, W: number, H: number)
           ask.visible = between(t, 900, 4000);
           answer.visible = between(t, 4200, 8000);
           thanks.visible = between(t, 9400, 12400);
-          heart.visible = between(t, 10000, 12400);
-          heart.position.y = 2.45 + span(t, 10000, 12400) * 0.35;
+          hearts.forEach((h, k) => {
+            const start = 10100 + k * 380;
+            const x = span(t, start, start + 1700);
+            h.visible = t >= start && x < 1;
+            // Up and to the right, clear of the bubble, then down into the screen.
+            const e = ease(x);
+            h.position
+              .copy(heartFrom)
+              .multiplyScalar((1 - e) * (1 - e))
+              .addScaledVector(heartPeak, 2 * e * (1 - e))
+              .addScaledVector(heartTo, e * e);
+            const pop = Math.min(1, x * 5);
+            (h.element as HTMLElement).style.opacity = String(x < 0.8 ? 1 : 1 - (x - 0.8) / 0.2);
+            (h.element.firstElementChild as HTMLElement).style.transform = `scale(${(0.5 + 0.5 * pop) * (1 - x * 0.25) * [1, 0.8, 0.9][k]})`;
+          });
           caption.textContent = "Ten minutes later…";
           caption.classList.toggle("on", between(t, 8100, 9300));
 
