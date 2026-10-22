@@ -163,3 +163,19 @@ def test_alexa_tells_about_new_landmarks_and_the_town_view_shows_them(server_url
     assert town["growth"]["level"] == len(growth.LEVELS)
     assert len(town["growth"]["landmarks"]) == len(growth.LANDMARKS)
     assert len(town["growth"]["upgrades"]) == len(growth.LANDMARKS) - 1
+
+
+def test_the_report_tells_how_far_the_town_has_grown(server_url, store):
+    store.put_growth(
+        {
+            "level": 3,
+            "landmarks": [{"kind": "bakery", "level": 2, "at": ""}, {"kind": "cafe", "level": 3, "at": ""}],
+            "chats": 0,
+        }
+    )
+    client = RawMcpClient(server_url, token="demo-tokyo")
+    client.initialize()
+    town = client.call_tool("town_report")[0]["structuredContent"]["town"]
+    assert town.startswith("The town is at level 3 of")
+    assert "a bakery, a café" in town
+    assert growth.describe(None) is None

@@ -17,7 +17,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 from pydantic import BaseModel, Field
 
-from overhearth import kinds
+from overhearth import growth, kinds
 from overhearth.assistant import RateLimiter
 from overhearth.delivery import Mailer, mailer_from_env, mask_email, report_email
 from overhearth.models import Household, KnowledgeEntry, Packet, PacketContext, ReportItem, TownEvent, utcnow
@@ -73,6 +73,11 @@ class ReportResult(BaseModel):
     speech: str
     met: list[str] = Field(default_factory=list)
     items: list[ReportItem] = Field(default_factory=list)
+    town: str | None = Field(
+        default=None,
+        description="How far the town has grown: its level and the landmarks built with thanks. Use it when "
+        "the person asks how the town is doing or growing.",
+    )
 
 
 class DiaryResult(BaseModel):
@@ -386,8 +391,9 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
     def town_report(ctx: Context) -> ReportResult:
         household = _household(ctx, store, "news")
         report = store.latest_report(household.id)
+        town = growth.describe(store.get_growth())
         if report is None or not report.items:
-            return ReportResult(speech="It's been quiet in town. I've just been looking around.")
+            return ReportResult(speech="It's been quiet in town. I've just been looking around.", town=town)
         items = sorted(report.items, key=lambda item: REPORT_PRIORITY.get(item.kind, len(REPORT_PRIORITY)))
         spoken = items[:MAX_SPOKEN_ITEMS]
         met = f"I ran into {', '.join(report.met)}. " if report.met else ""
@@ -397,6 +403,7 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
             speech=f"{met}{' '.join(item.text for item in spoken)}{more}",
             met=report.met,
             items=items,
+            town=town,
         )
 
     @mcp.tool(
