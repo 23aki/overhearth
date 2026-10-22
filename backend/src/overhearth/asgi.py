@@ -12,12 +12,13 @@ from urllib.parse import urlsplit
 
 import anyio
 from mcp.server.transport_security import TransportSecuritySettings
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 from starlette.middleware.cors import CORSMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse, PlainTextResponse, Response
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from overhearth import i18n
 from overhearth.assistant import RateLimiter, TurnRequest, assistant_from_env, tool_defs, trim
 from overhearth.delivery import Mailer, mailer_from_env
 from overhearth.diary import TOWN, Diarist
@@ -27,11 +28,18 @@ from overhearth.llm import writer_from_env
 from overhearth.mcp_server import build_server
 from overhearth.models import utcnow
 from overhearth.oauth import BearerGate, install_oauth_routes
+from overhearth.speech import MAX_SPEECH_CHARS, speaker_from_env
 from overhearth.store import Store
 from overhearth.store.env import store_from_env
 from overhearth.translate import translator_from_env
 
 log = logging.getLogger(__name__)
+
+
+class SpeechRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=MAX_SPEECH_CHARS)
+    language: str = "en"
+
 
 DEV_TICK_INTERVAL_SECONDS = float(os.environ.get("OVERHEARTH_DEV_TICK_INTERVAL", "30"))
 DEV_DIARY_INTERVAL_SECONDS = float(os.environ.get("OVERHEARTH_DEV_DIARY_INTERVAL", "60"))
@@ -157,6 +165,34 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
 
     assistant = assistant_from_env()
     limiter = RateLimiter()
+
+    speaker = speaker_from_env()
+    speech_limiter = RateLimiter(limit=240)
+
+    @server.custom_route("/assistant/speech", methods=["POST"])
+    async def assistant_speech(request: Request) -> Response:
+        """Alexa's reply as audio (Amazon Polly), in the voice of the language it is in.
+
+        Needs a linked home's token like a turn does; without a speaker configured it answers 404
+        and the browser speaks with its own voices.
+        """
+        scheme, _, token = request.headers.get("authorization", "").partition(" ")
+        home = store.household_for_token(token) if scheme.lower() == "bearer" else None
+        if home is None:
+            return JSONResponse({"error": "This Alexa account is not linked to Overhearth yet."}, status_code=401)
+        if speaker is None:
+            return JSONResponse({"error": "No voice here; use the browser's."}, status_code=404)
+        if not speech_limiter.allow(token):
+            return JSONResponse({"error": "Too many requests. Try again later."}, status_code=429)
+        try:
+            body = SpeechRequest.model_validate_json(await request.body())
+        except (ValueError, ValidationError):
+            return JSONResponse({"error": "Malformed request."}, status_code=400)
+        language = i18n.normalize(body.language)
+        audio = await anyio.to_thread.run_sync(lambda: speaker.speak(body.text, language))
+        if audio is None:
+            return JSONResponse({"error": "Alexa could not speak just now."}, status_code=502)
+        return Response(audio, media_type="audio/mpeg", headers={"Cache-Control": "no-store"})
 
     @server.custom_route("/assistant/turn", methods=["POST"])
     async def assistant_turn(request: Request) -> JSONResponse:

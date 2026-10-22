@@ -29,3 +29,4 @@ button.ghost { background: transparent; color: var(--ink); border: 1px solid var
 .diary-date { color: #8a8094; margin: 0; font-size: 13px; }
 .diary-text { font-size: 17px; line-height: 32px; margin: 0; white-space: pre-wrap; }
 .diary .close { float: right; background: transparent; color: #3b3246; font-size: 22px; padding: 0 6px; }
+.film .bar, .film .foot, .film .card, .bare .caption, .bare .ot-hud { display: none !important; }

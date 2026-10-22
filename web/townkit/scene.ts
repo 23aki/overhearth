@@ -47,6 +47,11 @@ export interface TownView {
    * shows over the house, and they come back out once the home has been quiet for a while.
    */
   setActivity(active: Record<string, Activity>): void;
+  /**
+   * Avatars arriving in town (3D only, for the demo film): light gathers around each house's
+   * front door, and the avatar steps out of its own house. null brings everyone, one by one.
+   */
+  arrive?(homes: string[] | null, delayMs?: number): Promise<void>;
   destroy(): void;
 }
 
@@ -117,6 +122,28 @@ const FLOAT = new TextStyle({
   fill: "#ffd27f",
   stroke: { color: "#4a2a10", width: 2 },
 });
+
+/**
+ * A speech bubble and its tail as one outline: a rounded box with a tail at the bottom middle,
+ * so it can be filled and stroked in one go (no seam where the tail meets the box).
+ */
+function bubbleShape(g: Graphics, x: number, y: number, w: number, h: number, r: number, tail: number, tailH: number): Graphics {
+  const bottom = y + h;
+  return g
+    .moveTo(x + r, y)
+    .lineTo(x + w - r, y)
+    .arcTo(x + w, y, x + w, y + r, r)
+    .lineTo(x + w, bottom - r)
+    .arcTo(x + w, bottom, x + w - r, bottom, r)
+    .lineTo(tail, bottom)
+    .lineTo(0, bottom + tailH)
+    .lineTo(-tail, bottom)
+    .lineTo(x + r, bottom)
+    .arcTo(x, bottom, x, bottom - r, r)
+    .lineTo(x, y + r)
+    .arcTo(x, y, x + r, y, r)
+    .closePath();
+}
 
 class Avatar {
   readonly sprite: Sprite;
@@ -268,12 +295,9 @@ class Bubble {
     const sub = gloss ? new Text({ text: gloss, style: GLOSS, resolution: 4 }) : null;
     const w = Math.ceil(Math.max(label.width, sub?.width ?? 0)) + 8;
     const h = Math.ceil(label.height + (sub ? sub.height + 2 : 0)) + 6;
-    const box = new Graphics()
-      .roundRect(-w / 2, -h - 5, w, h, 3)
+    const box = bubbleShape(new Graphics(), -w / 2, -h - 5, w, h, 3, 3, 4)
       .fill({ color: 0xffffff })
-      .stroke({ color: 0x1d2230, width: 1 })
-      .poly([-3, -6, 3, -6, 0, -1])
-      .fill({ color: 0xffffff });
+      .stroke({ color: 0x1d2230, width: 1, join: "round" });
     label.position.set(-w / 2 + 4, -h - 2);
     this.node.addChild(box, label);
     if (sub) {
@@ -364,12 +388,10 @@ class TalkBubble {
     const w = this.name.width + 4 + iconWidth + this.dots.width + 8;
     const h = 13;
     this.box
-      .clear()
-      .roundRect(-w / 2, -h - 4, w, h, 4)
+      .clear();
+    bubbleShape(this.box, -w / 2, -h - 4, w, h, 4, 3, 4)
       .fill({ color: 0xffffff })
-      .stroke({ color: 0x34c6f4, width: 1 })
-      .poly([-3, -5, 3, -5, 0, 0])
-      .fill({ color: 0xffffff });
+      .stroke({ color: 0x34c6f4, width: 1, join: "round" });
     let x = -w / 2 + 4;
     this.name.position.set(x, -h - 2);
     x += this.name.width + 4;

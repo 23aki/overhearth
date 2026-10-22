@@ -19,7 +19,21 @@ const status = $<HTMLSpanElement>("status");
 const caption = $<HTMLParagraphElement>("caption");
 const card = $<HTMLElement>("card");
 
-const town = await createTown($("town"), { camera: "free" });
+// Film mode (for the demo video): ?film=1 hides the page around the town and keeps it daytime;
+// &arrive=<home id> brings that avatar out of its house (all: everyone), with no replays,
+// captions or HUD.
+const params = new URLSearchParams(location.search);
+const film = params.get("film") === "1";
+const arriving = params.get("arrive");
+if (film) document.body.classList.add("film");
+if (film && arriving) document.body.classList.add("bare");
+
+const town = await createTown($("town"), {
+  camera: "free",
+  autoRotate: film && arriving === "all",
+  zoom: film && arriving === "all" ? 0.45 : 1,
+  followDistance: film ? 6.5 : 13,
+});
 let state: TownState | null = null;
 let shownTick = -1;
 
@@ -95,7 +109,7 @@ function showCard(home: Home): void {
 
 /** Play the latest town time; starting again replaces a replay in progress. */
 async function play(): Promise<void> {
-  if (!state) return;
+  if (!state || (film && arriving)) return;
   await town.replay({ focus: followSelect.value || null, onCaption: (text) => (caption.textContent = text) });
 }
 
@@ -189,6 +203,8 @@ async function refreshActivity(): Promise<void> {
   }
 }
 
+if (film) town.setNight(0);
 await refresh();
+if (arriving) void town.arrive?.(arriving === "all" ? null : [arriving], film ? 1500 : 0);
 setInterval(() => void refresh(), POLL_MS);
 setInterval(() => void refreshActivity(), ACTIVITY_MS);

@@ -34,6 +34,12 @@ import {
 export interface VoxelOptions {
   /** "fixed": an angled diorama view (inside Alexa). "free": the viewer can turn and zoom a little. */
   camera?: "fixed" | "free";
+  /** Turn slowly around the town (for filming). */
+  autoRotate?: boolean;
+  /** Closer (< 1) or farther than fitting the whole town. */
+  zoom?: number;
+  /** How far the camera stays from a followed avatar. */
+  followDistance?: number;
 }
 
 const ACTIVE_MS = 90_000;
@@ -41,6 +47,7 @@ const WALK_SPEED = 52; // map px per second
 const REPLAY_SPEED = 78;
 const MARGIN = 5; // tiles of countryside around the town
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const ease = (x: number) => x * x * (3 - 2 * x);
 const center = (p: Point) => ({ x: p.x * TILE + TILE / 2, y: p.y * TILE + TILE / 2 });
 const world = (x: number, y: number) => new THREE.Vector3(x / TILE, 0, y / TILE);
 
@@ -63,11 +70,18 @@ const CSS = `
 .ot-layer { position: absolute; inset: 0; pointer-events: none; }
 .ot-name { font: 700 11px ui-monospace, Menlo, Consolas, monospace; color: #fff; text-shadow: 0 0 2px #1d2230, 0 0 3px #1d2230, 1px 1px 0 #1d2230; white-space: nowrap; transform: translateY(-4px); }
 .ot-place { font: 700 11px ui-monospace, Menlo, Consolas, monospace; color: #fff; background: rgba(20,26,38,.62); padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
-.ot-bubble { max-width: 230px; background: #fff; color: #1d2230; border: 1.5px solid #1d2230; border-radius: 8px; padding: 5px 8px; font: 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif; box-shadow: 0 2px 0 rgba(0,0,0,.25); position: relative; transform: translateY(-50%); }
-.ot-bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -6px; border: 6px solid transparent; border-top-color: #fff; border-bottom: 0; }
+/* Bubbles and their tails are one shape: the tail is an outer triangle in the border color with
+   an inner one in the fill color, sized so the outline runs evenly around the tail and the join. */
+.ot-bubble { --bc: #1d2230; --bg: #fff; --tw: 8px; --th: 9px; --ih: 6.74px; --b: 1.5px; --k: 0.8889; max-width: 230px; background: var(--bg); color: #1d2230; border: 1.5px solid var(--bc); border-radius: 8px; padding: 5px 8px; font: 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif; filter: drop-shadow(0 2px 0 rgba(0,0,0,.25)); position: relative; transform: translateY(-50%); }
+.ot-bubble::before, .ot-bubble::after { content: ""; position: absolute; left: 50%; width: 0; height: 0; border-style: solid; border-color: transparent; }
+.ot-bubble::before { bottom: calc(-1 * var(--th)); margin-left: calc(-1 * var(--tw)); border-width: var(--th) var(--tw) 0; border-top-color: var(--bc); }
+.ot-bubble::after { bottom: calc(-1 * var(--ih)); margin-left: calc(-1 * (var(--ih) + var(--b) + 1px) * var(--k)); border-width: calc(var(--ih) + var(--b) + 1px) calc((var(--ih) + var(--b) + 1px) * var(--k)) 0; border-top-color: var(--bg); }
 .ot-bubble .gloss { display: block; margin-top: 3px; font-size: 11px; font-style: italic; color: #5b6474; }
 .ot-bubble.emote { font-size: 16px; padding: 2px 8px; }
-.ot-talk { background: #fff; border: 2px solid #34c6f4; border-radius: 10px; padding: 2px 8px; font: 700 12px ui-monospace, Menlo, Consolas, monospace; color: #1d2230; white-space: nowrap; animation: ot-bob 1.2s ease-in-out infinite; }
+.ot-talk { --bc: #34c6f4; --bg: #fff; --tw: 7px; --th: 8px; --ih: 4.96px; --b: 2px; --k: 0.875; position: relative; filter: drop-shadow(0 2px 0 rgba(0,0,0,.2)); background: var(--bg); border: 2px solid var(--bc); border-radius: 10px; padding: 2px 8px; font: 700 12px ui-monospace, Menlo, Consolas, monospace; color: #1d2230; white-space: nowrap; animation: ot-bob 1.2s ease-in-out infinite; }
+.ot-talk::before, .ot-talk::after { content: ""; position: absolute; left: 50%; width: 0; height: 0; border-style: solid; border-color: transparent; }
+.ot-talk::before { bottom: calc(-1 * var(--th)); margin-left: calc(-1 * var(--tw)); border-width: var(--th) var(--tw) 0; border-top-color: var(--bc); }
+.ot-talk::after { bottom: calc(-1 * var(--ih)); margin-left: calc(-1 * (var(--ih) + var(--b) + 1px) * var(--k)); border-width: calc(var(--ih) + var(--b) + 1px) calc((var(--ih) + var(--b) + 1px) * var(--k)) 0; border-top-color: var(--bg); }
 .ot-talk .icon { color: #ff6b8b; margin: 0 4px; }
 .ot-talk .dots::after { content: "•"; animation: ot-dots 1.05s steps(3) infinite; }
 @keyframes ot-dots { 0% { content: "•"; } 33% { content: "••"; } 66% { content: "•••"; } }
@@ -93,13 +107,25 @@ function injectCss(): void {
   document.head.appendChild(style);
 }
 
+/**
+ * A piece of HTML placed in the 3D scene. The renderer positions the outer element with an
+ * inline transform; the styled (and possibly animated) element is inside it, so a CSS
+ * animation on transform cannot move it away from its spot.
+ */
 function label(className: string, text = ""): CSS2DObject {
+  const outer = document.createElement("div");
   const div = document.createElement("div");
   div.className = className;
   div.textContent = text;
-  const object = new CSS2DObject(div);
+  outer.append(div);
+  const object = new CSS2DObject(outer);
   object.center.set(0.5, 1);
   return object;
+}
+
+/** The styled element of a label. */
+function face(object: CSS2DObject): HTMLElement {
+  return object.element.firstElementChild as HTMLElement;
 }
 
 function glowTexture(): THREE.CanvasTexture {
@@ -112,6 +138,62 @@ function glowTexture(): THREE.CanvasTexture {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, 64, 64);
   return new THREE.CanvasTexture(canvas);
+}
+
+/** The block creature every avatar is: a body with eyes and cheeks, Echo's light ring on top, two feet. */
+export function creature(color: THREE.ColorRepresentation): { group: THREE.Group; body: THREE.Mesh; feet: THREE.Mesh[] } {
+  const group = new THREE.Group();
+  const mat = (c: THREE.ColorRepresentation) => new THREE.MeshLambertMaterial({ color: c });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.3, 0.32), mat(color));
+  body.position.y = 0.21;
+  body.castShadow = true;
+  const eye = new THREE.BoxGeometry(0.06, 0.07, 0.02);
+  const dark = new THREE.MeshBasicMaterial({ color: 0x1d2230 });
+  for (const dx of [-0.08, 0.08]) {
+    const e = new THREE.Mesh(eye, dark);
+    e.position.set(dx, 0.04, 0.165);
+    body.add(e);
+    const shine = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 0.01), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    shine.position.set(dx - 0.015, 0.06, 0.177);
+    body.add(shine);
+    const cheek = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.01), new THREE.MeshBasicMaterial({ color: 0xe8798b }));
+    cheek.position.set(dx * 1.7, -0.03, 0.165);
+    body.add(cheek);
+  }
+  // Echo's light ring: four bars around the top.
+  const ring = new THREE.MeshBasicMaterial({ color: 0x34c6f4 });
+  for (const [w, d, x, z] of [[0.3, 0.04, 0, 0.12], [0.3, 0.04, 0, -0.12], [0.04, 0.2, 0.13, 0], [0.04, 0.2, -0.13, 0]]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(w, 0.035, d), ring);
+    bar.position.set(x, 0.17, z);
+    body.add(bar);
+  }
+  const feet: THREE.Mesh[] = [];
+  const foot = new THREE.BoxGeometry(0.1, 0.06, 0.12);
+  for (const dx of [-0.09, 0.09]) {
+    const f = new THREE.Mesh(foot, mat(0x3a3346));
+    f.position.set(dx, 0.03, 0.02);
+    f.castShadow = true;
+    feet.push(f);
+    group.add(f);
+  }
+  group.add(body);
+  return { group, body, feet };
+}
+
+/** A door of light standing on the ground, facing +z: where avatars come out into the town. */
+export function lightDoor(): { group: THREE.Group; panel: THREE.Mesh } {
+  const group = new THREE.Group();
+  const wood = new THREE.MeshLambertMaterial({ color: 0x5c3f26 });
+  for (const [w, h, x, y] of [[0.08, 1.2, -0.38, 0.6], [0.08, 1.2, 0.38, 0.6], [0.84, 0.08, 0, 1.2]]) {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.1), wood);
+    bar.position.set(x, y, 0);
+    bar.castShadow = true;
+    group.add(bar);
+  }
+  const panel = new THREE.Mesh(new THREE.PlaneGeometry(0.68, 1.14), new THREE.MeshBasicMaterial({ color: 0xc9f3ff, transparent: true, opacity: 0.95, side: THREE.DoubleSide }));
+  panel.position.set(0, 0.58, 0);
+  group.add(panel);
+  return { group, panel };
 }
 
 /** An avatar: a little block creature with Echo's light ring on top. */
@@ -131,44 +213,18 @@ class Avatar {
   private arrive: (() => void) | null = null;
   private feet: THREE.Mesh[] = [];
   private step = 0;
+  /** Height above the ground (dropping in from the sky). */
+  lift = 0;
+  /** Not in town yet (waiting to arrive). */
+  hidden = false;
 
   constructor(home: Home, readonly door: Point, parent: THREE.Object3D) {
     this.home = home;
-    const color = new THREE.Color(pick(BODIES, home.id));
-    const mat = (c: THREE.ColorRepresentation) => new THREE.MeshLambertMaterial({ color: c });
-    this.body = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.3, 0.32), mat(color));
-    this.body.position.y = 0.21;
-    this.body.castShadow = true;
+    const model = creature(pick(BODIES, home.id));
+    this.body = model.body;
+    this.feet = model.feet;
+    this.group.add(...model.group.children);
     this.body.userData.homeId = home.id;
-    const eye = new THREE.BoxGeometry(0.06, 0.07, 0.02);
-    const dark = new THREE.MeshBasicMaterial({ color: 0x1d2230 });
-    for (const dx of [-0.08, 0.08]) {
-      const e = new THREE.Mesh(eye, dark);
-      e.position.set(dx, 0.04, 0.165);
-      this.body.add(e);
-      const shine = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.025, 0.01), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-      shine.position.set(dx - 0.015, 0.06, 0.177);
-      this.body.add(shine);
-      const cheek = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.03, 0.01), new THREE.MeshBasicMaterial({ color: 0xe8798b }));
-      cheek.position.set(dx * 1.7, -0.03, 0.165);
-      this.body.add(cheek);
-    }
-    // Echo's light ring: four bars around the top.
-    const ring = new THREE.MeshBasicMaterial({ color: 0x34c6f4 });
-    for (const [w, d, x, z] of [[0.3, 0.04, 0, 0.12], [0.3, 0.04, 0, -0.12], [0.04, 0.2, 0.13, 0], [0.04, 0.2, -0.13, 0]]) {
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(w, 0.035, d), ring);
-      bar.position.set(x, 0.17, z);
-      this.body.add(bar);
-    }
-    const foot = new THREE.BoxGeometry(0.1, 0.06, 0.12);
-    for (const dx of [-0.09, 0.09]) {
-      const f = new THREE.Mesh(foot, mat(0x3a3346));
-      f.position.set(dx, 0.03, 0.02);
-      f.castShadow = true;
-      this.feet.push(f);
-      this.group.add(f);
-    }
-    this.group.add(this.body);
     this.name = label("ot-name", home.avatar);
     this.name.position.set(0, 0.62, 0);
     this.group.add(this.name);
@@ -217,6 +273,13 @@ class Avatar {
   /** Where the avatar waits at home: a step up from the road, right in front of its door. */
   homeSpot(): { x: number; y: number } {
     return { x: this.door.x * TILE + TILE / 2, y: this.door.y * TILE - 4 };
+  }
+
+  /** Show at once (no fade), at full size. */
+  appear(): void {
+    this.hidden = false;
+    this.fade = 1;
+    this.sync();
   }
 
   /** In the doorway, where it fades out going in. */
@@ -284,14 +347,14 @@ class Avatar {
     this.body.position.y = 0.21 + hop;
     this.feet[0].position.z = moving ? 0.02 + Math.sin(this.step / 110) * 0.05 : 0.02;
     this.feet[1].position.z = moving ? 0.02 - Math.sin(this.step / 110) * 0.05 : 0.02;
-    const goal = this.inside ? 0 : 1;
+    const goal = this.inside || this.hidden ? 0 : 1;
     this.fade += (goal - this.fade) * Math.min(1, ms / 200);
     this.sync();
   }
 
   sync(): void {
     const p = world(this.x, this.y);
-    this.group.position.set(p.x, 0, p.z);
+    this.group.position.set(p.x, this.lift, p.z);
     this.group.scale.setScalar(Math.max(0.001, this.fade) * 1.35);
     this.group.visible = this.fade > 0.05;
     this.name.visible = this.group.visible;
@@ -345,6 +408,8 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
   scene.add(hemi, sun, sun.target);
   const controls = free ? new OrbitControls(camera, renderer.domElement) : null;
   if (controls) {
+    controls.autoRotate = Boolean(options.autoRotate);
+    controls.autoRotateSpeed = 0.5;
     controls.enableDamping = true;
     controls.minPolarAngle = 0.35;
     controls.maxPolarAngle = 1.05;
@@ -396,7 +461,7 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
     const t = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     const byWidth = (layout.width * 0.58) / (t * aspect);
     const byHeight = (layout.height * 0.62) / t;
-    return Math.max(byWidth, byHeight);
+    return Math.max(byWidth, byHeight) * (options.zoom ?? 1);
   }
 
   function addVoxels(v: Voxels, parent: THREE.Object3D): THREE.InstancedMesh[] {
@@ -679,7 +744,7 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
       const sub = document.createElement("span");
       sub.className = "gloss";
       sub.textContent = clip(gloss);
-      object.element.append(sub);
+      face(object).append(sub);
     }
     object.position.set(0, 0.75, 0);
     avatar.group.add(object);
@@ -699,7 +764,7 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
   function fly(symbol: string, color: string, from: THREE.Vector3, to: THREE.Vector3, ms: number, height = 1.2): Promise<void> {
     const object = label("ot-fly", symbol);
     object.center.set(0.5, 0.5);
-    object.element.style.color = color;
+    face(object).style.color = color;
     effects.add(object);
     let t = 0;
     return new Promise((resolve) => {
@@ -846,6 +911,56 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
     await sleep(3800);
   }
 
+  /**
+   * The avatar comes out of its own house: light gathers around the front door and settles,
+   * the doorway glows open, and the avatar steps out to its doorstep and faces the road.
+   */
+  async function outOfHouse(a: Avatar): Promise<void> {
+    const doorX = a.door.x + 0.5;
+    const doorZ = a.door.y - 0.5;
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowMap, color: 0xbff4ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
+    glow.position.set(doorX, 0.62, doorZ + 0.08);
+    effects.add(glow);
+    const opening = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.75), new THREE.MeshBasicMaterial({ color: 0xeafcff, transparent: true, opacity: 0 }));
+    opening.position.set(doorX, 0.625, doorZ + 0.006);
+    effects.add(opening);
+    let t = 0;
+    // Light gathers (big and bright), then settles around the door frame.
+    await new Promise<void>((resolve) =>
+      animate((dt) => {
+        t = Math.min(1, t + dt / 1100);
+        const swell = t < 0.55 ? ease(t / 0.55) : 1 - 0.45 * ease((t - 0.55) / 0.45);
+        glow.scale.setScalar(0.2 + swell * 2.4);
+        (glow.material as THREE.SpriteMaterial).opacity = Math.min(1, t * 2) * 0.95;
+        (opening.material as THREE.MeshBasicMaterial).opacity = ease(Math.max(0, (t - 0.45) / 0.55));
+        if (t >= 1) resolve();
+        return t < 1;
+      }),
+    );
+    // The door opens onto light, and out it comes.
+    const inside = { x: a.door.x * TILE + TILE / 2, y: a.door.y * TILE - 9 };
+    a.x = inside.x;
+    a.y = inside.y;
+    a.group.rotation.y = 0;
+    a.appear();
+    sparkles(new THREE.Vector3(doorX, 0.5, doorZ + 0.15));
+    await a.walkTo([a.homeSpot()], WALK_SPEED * 0.7);
+    a.busy = false;
+    t = 1;
+    animate((dt) => {
+      t = Math.max(0, t - dt / 700);
+      (glow.material as THREE.SpriteMaterial).opacity = t * 0.95;
+      glow.scale.setScalar(0.2 + t * 1.3);
+      (opening.material as THREE.MeshBasicMaterial).opacity = t;
+      if (t <= 0) {
+        effects.remove(glow, opening);
+        opening.geometry.dispose();
+        return false;
+      }
+      return true;
+    });
+  }
+
   const view: TownView = {
     setState(next) {
       const key = next.homes.map((h) => h.id).sort().join(",") + `|${next.viewer ?? ""}`;
@@ -938,6 +1053,21 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
       for (const [id, a] of Object.entries(active)) activity.set(id, { kind: a.kind, until: clock + Math.max(0, ACTIVE_MS - a.ago * 1000) });
     },
 
+    async arrive(ids, delayMs = 0) {
+      const chosen = ids ? ids.map((id) => avatars.get(id)).filter((a): a is Avatar => a !== undefined) : [...avatars.values()];
+      for (const a of chosen) {
+        a.goHome();
+        a.hidden = true;
+        a.busy = true;
+        a.sync();
+      }
+      await sleep(delayMs);
+      // One by one (everyone: in a shuffled but repeatable order), out of their own front doors.
+      const order = ids ? chosen : [...chosen].sort((a, b) => seeded(a.home.id)() - seeded(b.home.id)());
+      const gap = ids ? 600 : 170;
+      await Promise.all(order.map((a, i) => sleep(i * gap).then(() => outOfHouse(a))));
+    },
+
     destroy() {
       replayToken++;
       resizeObserver.disconnect();
@@ -1001,7 +1131,7 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
       if (on && avatar?.inside) {
         if (!h.talking || h.talkKind !== talking.kind) {
           const icon = { thanks: "♥", ask: "💡", share: "💡", mail: "✉" }[talking.kind] ?? "";
-          h.talk.element.innerHTML = "";
+          face(h.talk).innerHTML = "";
           const name = document.createElement("span");
           name.textContent = h.home.avatar;
           const i = document.createElement("span");
@@ -1009,7 +1139,7 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
           i.textContent = icon;
           const dots = document.createElement("span");
           dots.className = "dots";
-          h.talk.element.append(name, i, dots);
+          face(h.talk).append(name, i, dots);
           h.talkKind = talking.kind;
         }
         h.talking = true;
@@ -1046,7 +1176,12 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
         goalDistance = Math.min(fit, 16);
       } else if (target) {
         goal = world(target.x, target.y).setY(0.4);
-        goalDistance = Math.min(fit, 13);
+        goalDistance = Math.min(fit, options.followDistance ?? 13);
+        // Inside, talking with its person: keep the whole house and the bubble over it in view.
+        if (target.inside) {
+          goal.setY(1.7);
+          goalDistance = Math.min(fit, Math.max(goalDistance, 9.5));
+        }
       } else if (!controls || clock < recenterUntil) {
         goal = townCenter();
         goalDistance = fit;
