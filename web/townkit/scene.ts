@@ -48,8 +48,8 @@ export interface TownView {
    */
   setActivity(active: Record<string, Activity>): void;
   /**
-   * Avatars arriving in town (3D only, for the demo film): one home's avatar steps out of a
-   * door of light by its house; with null, everyone drops in from the sky.
+   * Avatars arriving in town (3D only, for the demo film): light gathers around each house's
+   * front door, and the avatar steps out of its own house. null brings everyone, one by one.
    */
   arrive?(homes: string[] | null, delayMs?: number): Promise<void>;
   destroy(): void;

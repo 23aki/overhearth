@@ -47,6 +47,7 @@ const WALK_SPEED = 52; // map px per second
 const REPLAY_SPEED = 78;
 const MARGIN = 5; // tiles of countryside around the town
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const ease = (x: number) => x * x * (3 - 2 * x);
 const center = (p: Point) => ({ x: p.x * TILE + TILE / 2, y: p.y * TILE + TILE / 2 });
 const world = (x: number, y: number) => new THREE.Vector3(x / TILE, 0, y / TILE);
 
@@ -891,76 +892,54 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
     await sleep(3800);
   }
 
-  /** A door of light opens on the road by the house, and the avatar steps out to its door. */
-  async function throughDoor(a: Avatar): Promise<void> {
-    const road = center(a.door);
-    const at = world(road.x, road.y + 3);
-    const { group: portal, panel } = lightDoor();
-    portal.position.copy(at);
-    const size = 1.4;
-    portal.scale.setScalar(0.001);
-    effects.add(portal);
-    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowMap, color: 0x9ae6ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
-    glow.position.set(at.x, 0.6, at.z + 0.05);
-    glow.scale.setScalar(2.6);
+  /**
+   * The avatar comes out of its own house: light gathers around the front door and settles,
+   * the doorway glows open, and the avatar steps out to its doorstep and faces the road.
+   */
+  async function outOfHouse(a: Avatar): Promise<void> {
+    const doorX = a.door.x + 0.5;
+    const doorZ = a.door.y - 0.5;
+    const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowMap, color: 0xbff4ff, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 }));
+    glow.position.set(doorX, 0.62, doorZ + 0.08);
     effects.add(glow);
+    const opening = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.75), new THREE.MeshBasicMaterial({ color: 0xeafcff, transparent: true, opacity: 0 }));
+    opening.position.set(doorX, 0.625, doorZ + 0.006);
+    effects.add(opening);
     let t = 0;
+    // Light gathers (big and bright), then settles around the door frame.
     await new Promise<void>((resolve) =>
       animate((dt) => {
-        t = Math.min(1, t + dt / 500);
-        const s = 1 + Math.sin(t * Math.PI) * 0.12;
-        portal.scale.setScalar(Math.max(0.001, t * s * size));
-        (glow.material as THREE.SpriteMaterial).opacity = t * 0.9;
+        t = Math.min(1, t + dt / 1100);
+        const swell = t < 0.55 ? ease(t / 0.55) : 1 - 0.45 * ease((t - 0.55) / 0.45);
+        glow.scale.setScalar(0.2 + swell * 2.4);
+        (glow.material as THREE.SpriteMaterial).opacity = Math.min(1, t * 2) * 0.95;
+        (opening.material as THREE.MeshBasicMaterial).opacity = ease(Math.max(0, (t - 0.45) / 0.55));
         if (t >= 1) resolve();
         return t < 1;
       }),
     );
-    await sleep(350);
-    a.x = road.x;
-    a.y = road.y + 3;
-    a.group.rotation.y = Math.PI;
+    // The door opens onto light, and out it comes.
+    const inside = { x: a.door.x * TILE + TILE / 2, y: a.door.y * TILE - 9 };
+    a.x = inside.x;
+    a.y = inside.y;
+    a.group.rotation.y = 0;
     a.appear();
-    sparkles(at.clone().setY(0.6));
-    await a.walkTo([road, a.homeSpot()], WALK_SPEED * 0.9);
+    sparkles(new THREE.Vector3(doorX, 0.5, doorZ + 0.15));
+    await a.walkTo([a.homeSpot()], WALK_SPEED * 0.7);
     a.busy = false;
     t = 1;
     animate((dt) => {
-      t = Math.max(0, t - dt / 450);
-      portal.scale.setScalar(Math.max(0.001, t * size));
-      (glow.material as THREE.SpriteMaterial).opacity = t * 0.9;
-      (panel.material as THREE.MeshBasicMaterial).opacity = t * 0.95;
+      t = Math.max(0, t - dt / 700);
+      (glow.material as THREE.SpriteMaterial).opacity = t * 0.95;
+      glow.scale.setScalar(0.2 + t * 1.3);
+      (opening.material as THREE.MeshBasicMaterial).opacity = t;
       if (t <= 0) {
-        effects.remove(portal, glow);
+        effects.remove(glow, opening);
+        opening.geometry.dispose();
         return false;
       }
       return true;
     });
-  }
-
-  /** The avatar drops in from the sky onto its doorstep, with a little puff. */
-  async function fromSky(a: Avatar): Promise<void> {
-    const spot = a.homeSpot();
-    a.x = spot.x;
-    a.y = spot.y;
-    a.group.rotation.y = 0;
-    a.lift = 9;
-    a.appear();
-    let t = 0;
-    await new Promise<void>((resolve) =>
-      animate((dt) => {
-        t = Math.min(1, t + dt / 1500);
-        a.lift = 9 * (1 - t * t);
-        if (t >= 1) {
-          a.lift = 0;
-          resolve();
-          return false;
-        }
-        return true;
-      }),
-    );
-    a.sync();
-    sparkles(world(spot.x, spot.y).setY(0.15));
-    a.busy = false;
   }
 
   const view: TownView = {
@@ -1064,12 +1043,10 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
         a.sync();
       }
       await sleep(delayMs);
-      if (ids) {
-        await Promise.all(chosen.map((a, i) => sleep(i * 600).then(() => throughDoor(a))));
-      } else {
-        const order = [...chosen].sort((a, b) => seeded(a.home.id)() - seeded(b.home.id)());
-        await Promise.all(order.map((a, i) => sleep(400 + i * 170).then(() => fromSky(a))));
-      }
+      // One by one (everyone: in a shuffled but repeatable order), out of their own front doors.
+      const order = ids ? chosen : [...chosen].sort((a, b) => seeded(a.home.id)() - seeded(b.home.id)());
+      const gap = ids ? 600 : 170;
+      await Promise.all(order.map((a, i) => sleep(i * gap).then(() => outOfHouse(a))));
     },
 
     destroy() {
