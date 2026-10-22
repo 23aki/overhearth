@@ -117,8 +117,10 @@ How a turn works:
    comes from the MCP server itself, not from the browser.
 2. The page runs the chosen tools over MCP (Streamable HTTP, protocol 2025-11-25) with the
    household's token, and sends the results back.
-3. The reply is spoken with the browser's speech synthesis. Voice input uses the Web Speech API
-   where available; typing always works.
+3. The reply is spoken in Alexa's voice by Amazon Polly (a neural voice per language: Danielle,
+   Kazuha, Mia, Léa, Seoyeon, Camila, Vicki, Zhiyu), through `POST /assistant/speech` with the
+   home's token. Without Polly (locally, unless `OVERHEARTH_TTS=polly`), the browser's speech
+   synthesis speaks instead. Voice input uses the Web Speech API where available; typing always works.
 
 ### Every home in its own language
 

@@ -99,7 +99,7 @@ npm run dev
 
 1. 画面が、利用者の発話を `POST /assistant/turn` に送ります。バックエンドが Bedrock（Claude Haiku 5.5）で Alexa+ の役を演じ、Overhearth のツールを選ぶか、返事の文を作ります。ツールの一覧はブラウザからではなく、MCP サーバー自身から取ります。
 2. 画面が、選ばれたツールを家のトークンを使って MCP（Streamable HTTP、プロトコル 2025-11-25）で実行し、結果を送り返します。
-3. 返事はブラウザの音声合成で読み上げます。音声入力は、使えるブラウザでは Web Speech API を使います。文字入力はいつでも使えます。
+3. 返事は Amazon Polly の声で読み上げます（言語ごとのニューラル音声：Danielle、Kazuha、Mia、Léa、Seoyeon、Camila、Vicki、Zhiyu）。家のトークンを付けて `POST /assistant/speech` から受け取ります。Polly が使えないとき（ローカルでは `OVERHEARTH_TTS=polly` を付けない限り）は、ブラウザの音声合成で読み上げます。音声入力は、使えるブラウザでは Web Speech API を使います。文字入力はいつでも使えます。
 
 ### それぞれの家の言語で
 

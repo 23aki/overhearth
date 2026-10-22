@@ -118,7 +118,7 @@ async function handle(text: string): Promise<void> {
     const { speech } = await runTurn(current.token, mcp, current.history, said, onTool);
     addLine("alexa", speech);
     setRing("speaking");
-    await speak(speech, current.lang);
+    await speak(speech, current.lang, current.token);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Something went wrong.";
     addLine("alexa", message);

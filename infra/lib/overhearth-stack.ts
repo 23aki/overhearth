@@ -140,6 +140,7 @@ function handler(event) {
       OVERHEARTH_DIALOGUE: props.llm,
       OVERHEARTH_ASSISTANT: props.llm,
       OVERHEARTH_BEDROCK_MODEL: props.bedrockModel,
+      OVERHEARTH_TTS: "polly",
       OVERHEARTH_DIARY_BUCKET: diaryPictures.bucketName,
       OVERHEARTH_DIARY_BASE_URL: webOrigin,
       ...(props.openaiApiKey ? { OPENAI_API_KEY: props.openaiApiKey } : {}),
@@ -152,6 +153,8 @@ function handler(event) {
         : {}),
       ...(props.mailFrom ? { OVERHEARTH_MAILER: "ses", OVERHEARTH_MAIL_FROM: props.mailFrom } : {}),
     };
+    // Alexa's voice: replies are spoken by Amazon Polly (the API has no other use for it).
+    const speak = new iam.PolicyStatement({ actions: ["polly:SynthesizeSpeech"], resources: ["*"] });
     const sendEmail = new iam.PolicyStatement({
       actions: ["ses:SendEmail"],
       resources: [`arn:aws:ses:${this.region}:${this.account}:identity/*`],
@@ -187,6 +190,7 @@ function handler(event) {
     });
     table.grantReadWriteData(api);
     api.addToRolePolicy(bedrock);
+    api.addToRolePolicy(speak);
     if (props.mailFrom) api.addToRolePolicy(sendEmail);
 
     const alias = new lambda.Alias(this, "ApiLive", {

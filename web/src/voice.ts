@@ -1,4 +1,9 @@
-/** Browser speech in and out (Web Speech API). Falls back to typing when unavailable. */
+/**
+ * Speech in and out. Alexa's replies are spoken by Amazon Polly through the backend, in the
+ * voice of the language they are in; the browser's own speech (Web Speech API) is the fallback.
+ * Listening uses the browser's recognition, and falls back to typing when unavailable.
+ */
+import { BACKEND_URL, apiHeaders } from "./config";
 
 interface RecognitionResultEvent {
   results: ArrayLike<ArrayLike<{ transcript: string }>>;
@@ -78,9 +83,54 @@ function spokenLanguage(text: string, home: string): string {
   return home;
 }
 
-/** Speak a reply, in the voice of the language it is in. */
-export function speak(text: string, lang = "en"): Promise<void> {
-  if (!("speechSynthesis" in window) || !text) return Promise.resolve();
+let playing: HTMLAudioElement | null = null;
+/** After the backend says it has no voice (404), stop asking. */
+let pollyAvailable = true;
+
+/** Alexa's voice from the backend (Amazon Polly). Resolves false when it could not play. */
+async function speakWithPolly(text: string, lang: string, token: string): Promise<boolean> {
+  if (!pollyAvailable) return false;
+  let response: Response;
+  try {
+    response = await fetch(`${BACKEND_URL}/assistant/speech`, {
+      method: "POST",
+      headers: { ...apiHeaders(), "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ text, language: lang }),
+    });
+  } catch {
+    return false;
+  }
+  if (response.status === 404) pollyAvailable = false;
+  if (!response.ok) return false;
+  const url = URL.createObjectURL(await response.blob());
+  const audio = new Audio(url);
+  playing = audio;
+  return new Promise((resolve) => {
+    const done = (ok: boolean) => {
+      URL.revokeObjectURL(url);
+      if (playing === audio) playing = null;
+      resolve(ok);
+    };
+    audio.onended = () => done(true);
+    audio.onpause = () => done(true);
+    audio.onerror = () => done(false);
+    audio.play().catch(() => done(false));
+  });
+}
+
+/**
+ * Speak a reply, in the voice of the language it is in: Amazon Polly when the home's token is
+ * given and the backend has a voice, otherwise the browser's own speech.
+ */
+export async function speak(text: string, lang = "en", token?: string): Promise<void> {
+  if (!text) return;
+  stopSpeaking();
+  if (token && (await speakWithPolly(text.slice(0, 1500), spokenLanguage(text, lang), token))) return;
+  return speakWithBrowser(text, lang);
+}
+
+function speakWithBrowser(text: string, lang: string): Promise<void> {
+  if (!("speechSynthesis" in window)) return Promise.resolve();
   speechSynthesis.cancel();
   return new Promise((resolve) => {
     const utterance = new SpeechSynthesisUtterance(text);
@@ -102,5 +152,7 @@ export function speak(text: string, lang = "en"): Promise<void> {
 }
 
 export function stopSpeaking(): void {
+  playing?.pause();
+  playing = null;
   if ("speechSynthesis" in window) speechSynthesis.cancel();
 }
