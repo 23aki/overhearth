@@ -17,7 +17,7 @@ from mcp.server.mcpserver.exceptions import ToolError
 from mcp_types import ToolAnnotations
 from pydantic import BaseModel, Field
 
-from overhearth import kinds
+from overhearth import growth, kinds
 from overhearth.assistant import RateLimiter
 from overhearth.delivery import Mailer, mailer_from_env, mask_email, report_email
 from overhearth.models import Household, KnowledgeEntry, Packet, PacketContext, ReportItem, TownEvent, utcnow
@@ -73,12 +73,17 @@ class ReportResult(BaseModel):
     speech: str
     met: list[str] = Field(default_factory=list)
     items: list[ReportItem] = Field(default_factory=list)
+    town: str | None = Field(
+        default=None,
+        description="How far the town has grown: its level and the landmarks built with thanks. Use it when "
+        "the person asks how the town is doing or growing.",
+    )
 
 
 class DiaryResult(BaseModel):
     speech: str
     available: bool
-    scope: str = Field(description="'home' for this home's avatar's diary, 'town' for the town's.")
+    scope: str = Field(description="'home' for your own diary (this home's Alexa), 'town' for the town's.")
     avatar: str | None = None
     date: str | None = None
     title: str | None = None
@@ -221,8 +226,8 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
         name="town_diary",
         title="Today's picture diary",
         description=(
-            "Show the picture diary this home's Alexa avatar drew of its day in town (who it met, what "
-            "it learned, thanks that came back), on the screen. Call when the person wants to see the "
+            "Show the picture diary you (Alexa) drew of your day in the Overhearth town (who you met, "
+            "what you learned, thanks that came back), on the screen. Call when the person wants to see the "
             "diary, or says yes after the town report mentions that a diary is ready."
         ),
         annotations=READ_ONLY,
@@ -377,17 +382,18 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
         name="town_report",
         title="What happened in town",
         description=(
-            "Tell the person what their Alexa's avatar did in town since they last talked: who it "
-            "met, know-how it brought back, what other homes are thankful for, and thanks that came "
-            "back for things this home shared."
+            "Tell the person what you (Alexa) did in the Overhearth town since you last talked: who you "
+            "met, know-how you brought back, what other homes are thankful for, and thanks that came "
+            'back for things this home shared. You are the one who went to town: tell it as "I".'
         ),
         annotations=REPORT_ONCE,
     )
     def town_report(ctx: Context) -> ReportResult:
         household = _household(ctx, store, "news")
         report = store.latest_report(household.id)
+        town = growth.describe(store.get_growth())
         if report is None or not report.items:
-            return ReportResult(speech=f"It's been quiet in town. {household.avatar_name} is just looking around.")
+            return ReportResult(speech="It's been quiet in town. I've just been looking around.", town=town)
         items = sorted(report.items, key=lambda item: REPORT_PRIORITY.get(item.kind, len(REPORT_PRIORITY)))
         spoken = items[:MAX_SPOKEN_ITEMS]
         met = f"I ran into {', '.join(report.met)}. " if report.met else ""
@@ -397,14 +403,15 @@ def build_server(store: Store, mailer: Mailer | None = None) -> MCPServer:
             speech=f"{met}{' '.join(item.text for item in spoken)}{more}",
             met=report.met,
             items=items,
+            town=town,
         )
 
     @mcp.tool(
         name="email_report",
         title="Email the town news",
         description=(
-            "Send the person their town news in writing, by email: who their avatar met and what it "
-            "brought back. Call when they ask to have it emailed, sent to them, or written down. Call "
+            "Send the person their town news in writing, by email: who you (Alexa) met in town and "
+            "what you brought back. Call when they ask to have it emailed, sent to them, or written down. Call "
             "first with confirmed=false and read the preview back; call again with confirmed=true only "
             "after the person agrees."
         ),

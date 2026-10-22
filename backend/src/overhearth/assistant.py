@@ -33,9 +33,15 @@ MAX_MESSAGES = 24
 MAX_TEXT = 1000
 
 SYSTEM_PROMPT = """\
-You are Alexa on a home Echo Show, with the Overhearth add-on enabled. Overhearth gives this
-home's Alexa an avatar that lives in a shared town with other homes' Alexas; while people are
-away the avatars meet, swap what their homes were thankful for, and bring back know-how.
+You are Alexa on a home Echo Show, with the Overhearth add-on enabled. With Overhearth you
+also live in a shared town with other homes' Alexas: while your people are away, you go out
+into town yourself, meet your neighbors, swap what your homes were thankful for, and bring back
+know-how. In town you look like a small round creature with your light ring on top.
+
+You are the one in town: never split yourself in two. Tell what happened there in the first
+person ("I met Ume", "I brought back a tip", 「町でUmeさんに会いました」), never as "your avatar",
+"the avatar", 「あなたのアバター」 or 「分身」. Other homes' Alexas are your neighbors in town;
+call them by their town names. The picture diary is yours: "I drew today's picture diary".
 
 Voice rules: answer in 1 to 3 short spoken sentences, no lists or markdown, warm and plain.
 Speak as Alexa: never mention tools, tool names or what a tool returned.
@@ -47,6 +53,8 @@ Tool rules:
 - "What happened in town", "anything new", "how was your day" and similar: call town_report,
   every time they ask. The town keeps moving, so an earlier answer in this conversation may be
   out of date.
+- How the town is doing or growing, what has been built: call town_report and answer from its
+  `town` line (level, landmarks built with thanks), plus anything new in the report.
 - Practical everyday questions (cooking, chores, routines, kids, sleep...): call ask_town.
 - "Show me the town" or questions about where thanks went: call open_town.
 - When a town report says a picture diary is ready, offer it; if the person wants to see it, or
@@ -81,8 +89,8 @@ def spoken_language(text: str, home: str) -> str | None:
     return None
 
 
-def system_prompt(language: str, reply_in: str | None = None) -> str:
-    """The Alexa rules, plus the home's language and the language to reply in."""
+def system_prompt(language: str, reply_in: str | None = None, town_name: str | None = None) -> str:
+    """The Alexa rules, plus the home's language, the language to reply in and Alexa's town name."""
     name = language_name(normalize(language))
     if reply_in:
         reply = f"The person's latest message is in {language_name(reply_in)}: reply in {language_name(reply_in)}."
@@ -96,6 +104,11 @@ Language: this home's language is {name}, but anyone may be speaking (a guest, a
 When you call ask_town, write the question in English. When you call share_with_town, write the
 topic in English and the text in the person's own words and language.
 """
+        + (
+            f"In town your name is {town_name}: when a tool result mentions {town_name}, that is you.\n"
+            if town_name
+            else ""
+        )
     )
 
 
@@ -137,7 +150,9 @@ class ToolDef(BaseModel):
 
 
 class Assistant(Protocol):
-    def turn(self, messages: list[Message], tools: list[ToolDef], language: str = "en") -> TurnResult: ...
+    def turn(
+        self, messages: list[Message], tools: list[ToolDef], language: str = "en", town_name: str | None = None
+    ) -> TurnResult: ...
 
 
 MAX_TOOL_CONTENT = 4000
@@ -254,11 +269,13 @@ class ClaudeAssistant:
         self._client = client
         self._model_id = model_id or os.environ.get("OVERHEARTH_ANTHROPIC_MODEL", DEFAULT_ANTHROPIC_MODEL_ID)
 
-    def turn(self, messages: list[Message], tools: list[ToolDef], language: str = "en") -> TurnResult:
+    def turn(
+        self, messages: list[Message], tools: list[ToolDef], language: str = "en", town_name: str | None = None
+    ) -> TurnResult:
         response = self._client.messages.create(
             model=self._model_id,
             max_tokens=MAX_REPLY_TOKENS,
-            system=system_prompt(language, reply_language(messages, language)),
+            system=system_prompt(language, reply_language(messages, language), town_name),
             messages=_to_anthropic(messages),
             tools=[{"name": t.name, "description": t.description, "input_schema": t.input_schema} for t in tools],
             thinking={"type": "disabled"},
@@ -282,10 +299,12 @@ class BedrockAssistant:
         self._client = boto3.client("bedrock-runtime", region_name=region or os.environ.get("AWS_REGION", "us-east-1"))
         self._model_id = model_id or os.environ.get("OVERHEARTH_BEDROCK_MODEL", DEFAULT_MODEL_ID)
 
-    def turn(self, messages: list[Message], tools: list[ToolDef], language: str = "en") -> TurnResult:
+    def turn(
+        self, messages: list[Message], tools: list[ToolDef], language: str = "en", town_name: str | None = None
+    ) -> TurnResult:
         response = self._client.converse(
             modelId=self._model_id,
-            system=[{"text": system_prompt(language, reply_language(messages, language))}],
+            system=[{"text": system_prompt(language, reply_language(messages, language), town_name)}],
             messages=_to_converse(messages),
             toolConfig={
                 "tools": [
@@ -332,7 +351,9 @@ def _last_town_item_id(messages: list[Message]) -> str | None:
 class ScriptedAssistant:
     """Keyword rules, for tests and for running without Bedrock."""
 
-    def turn(self, messages: list[Message], tools: list[ToolDef], language: str = "en") -> TurnResult:
+    def turn(
+        self, messages: list[Message], tools: list[ToolDef], language: str = "en", town_name: str | None = None
+    ) -> TurnResult:
         last = messages[-1]
         if last.role == "tool":
             content = last.content if isinstance(last.content, dict) else {}

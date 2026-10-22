@@ -179,3 +179,11 @@ def test_alexa_replies_in_the_language_the_person_used():
     ]
     assert reply_language(history, "ja") == "en"
     assert "reply in English" in system_prompt("ja", "en")
+
+
+def test_alexa_is_the_one_in_town_and_knows_its_town_name():
+    prompt = system_prompt("ja", "ja", "Ume")
+    assert 'never as "your avatar"' in prompt
+    assert "あなたのアバター" in prompt
+    assert "In town your name is Ume" in prompt
+    assert "In town your name" not in system_prompt("ja")

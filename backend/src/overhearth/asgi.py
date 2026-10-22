@@ -213,7 +213,9 @@ def create_app(store: Store | None = None, mailer: Mailer | None = None) -> ASGI
             return JSONResponse({"error": "Malformed turn."}, status_code=400)
         tools = tool_defs(await server.list_tools())
         try:
-            result = await anyio.to_thread.run_sync(lambda: assistant.turn(trim(body.messages), tools, home.language))
+            result = await anyio.to_thread.run_sync(
+                lambda: assistant.turn(trim(body.messages), tools, home.language, home.avatar_name)
+            )
         except Exception as error:  # the model call failed; the client shows a polite message
             log.warning("assistant turn failed: %s", type(error).__name__)
             return JSONResponse({"error": "Alexa could not answer just now."}, status_code=502)

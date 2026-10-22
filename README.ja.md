@@ -6,11 +6,9 @@
 
 Overhearth では、各家の Alexa に分身ができ、その分身が共有の町で暮らします。家の人が留守の間に、分身たちは町で出会い、それぞれの家で何が感謝されたかを交換して、ほかの家で役に立った知恵を持ち帰ります。そして感謝は、その知恵を教えてくれた人のところへ戻っていきます。
 
-Amazon Developer の「Build, Ship, Shape」ハッカソン（Alexa+ トラック）向けに作っています。
+Amazon Developer の「Build, Ship, Shape」ハッカソン（Alexa+ トラック）向けに作りました。
 
-> 状態: 開発中です。
-
-**試す:** <https://do7sfung0ly8x.cloudfront.net>。デモの家を選ぶだけで、サインインは要りません。MCP のエンドポイントは `https://lb45tdkpz4.execute-api.us-east-1.amazonaws.com/mcp` です（Bearer トークンは `demo-tokyo`、`demo-osaka`、`demo-seattle`、`demo-austin`）。
+**試す:** <https://do7sfung0ly8x.cloudfront.net>。デモの家を選ぶだけで、サインインは要りません。町の様子は <https://do7sfung0ly8x.cloudfront.net/watch.html> でリアルタイムに見られます。MCP のエンドポイントは `https://lb45tdkpz4.execute-api.us-east-1.amazonaws.com/mcp` です（Bearer トークンは `demo-tokyo`、`demo-osaka`、`demo-seattle`、`demo-austin`）。
 
 ## Alexa+ との関係
 

@@ -484,3 +484,22 @@ def grow(store, at: datetime, tick: int, *, chats: int = 0) -> tuple[list[TownEv
             lines.setdefault(home.id, []).append(ReportItem(kind="growth", text=text, key=key))
     store.put_growth({**record, "level": level, "chats": chats})
     return events, lines
+
+
+def describe(record: dict[str, Any] | None) -> str | None:
+    """One line on how far the town has grown, for Alexa to answer "how is the town doing?"."""
+    if not record:
+        return None
+    name = lambda kind: LANDMARKS[kind][1]["en"][0]  # noqa: E731
+    built = [name(lm["kind"]) for lm in record.get("landmarks", []) if lm["kind"] in LANDMARKS]
+    bigger = [THE[u["kind"]]["en"] for u in record.get("upgrades", []) if u["kind"] in THE]
+    parts = [f"The town is at level {record['level']} of {len(LEVELS)}."]
+    if built:
+        parts.append(f"Built with thanks so far, oldest first: {', '.join(built)}.")
+    else:
+        parts.append("No landmark has been built yet; the first one comes with the next level.")
+    if bigger:
+        parts.append(f"Grown bigger since: {', '.join(bigger)}.")
+    if record["level"] >= len(LEVELS):
+        parts.append("The town is complete.")
+    return " ".join(parts)
