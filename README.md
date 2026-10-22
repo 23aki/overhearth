@@ -10,9 +10,8 @@ homes found helpful. Thanks then travel back to whoever shared that know-how.
 
 Built for the Amazon Developer "Build, Ship, Shape" hackathon (Alexa+ track).
 
-> Status: work in progress.
-
-**Try it:** <https://do7sfung0ly8x.cloudfront.net>. Pick a demo home; no sign-in needed. The MCP
+**Try it:** <https://do7sfung0ly8x.cloudfront.net>. Pick a demo home; no sign-in needed. Watch the
+town live at <https://do7sfung0ly8x.cloudfront.net/watch.html>. The MCP
 endpoint is `https://lb45tdkpz4.execute-api.us-east-1.amazonaws.com/mcp` (bearer token
 `demo-tokyo`, `demo-osaka`, `demo-seattle` or `demo-austin`).
 
