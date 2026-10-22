@@ -141,10 +141,14 @@ Portuguese, German and Chinese).
 
 ### The town, as a little game world
 
-The town is drawn as a top-down pixel-art world with PixiJS (`web/townkit/`). All art is drawn
-in code. Houses stand along the roads around a plaza. Each home's avatar, a small round creature
-with Echo's light ring on its head, walks out to meet another avatar halfway, says its lines in
-speech bubbles and hands over tips and questions. Thanks then fly home as hearts, and the home
+The town is a 3D block world, a little diorama drawn with three.js (`web/townkit/scene3d.ts`,
+`voxel.ts`). All blocks and textures are drawn in code. Houses stand along the roads around a
+plaza with a fountain. Each home's avatar, a small block creature with Echo's light ring on its
+head, walks out to meet another avatar halfway, says its lines in speech bubbles and hands over
+tips and questions. Names, bubbles, subtitles and the HUD are HTML over the canvas, so text stays
+sharp. The watch page can turn and zoom the diorama; inside Alexa the camera is fixed and follows
+your avatar. The earlier 2D pixel-art view (PixiJS) is still there with `?view=2d`, and is used
+where WebGL 2 is missing. Thanks then fly home as hearts, and the home
 that receives them lights up. Windows glow with how often a home's know-how was thanked, and
 the town follows day and night.
 
@@ -155,7 +159,8 @@ the town follows day and night.
   last exchange, never what was said (`GET /town/activity`, polled by the watch page).
 - **Watch page** (`/watch.html`): the whole town, live, without going through Alexa. New town
   time is replayed as soon as it happens. Pick a home to follow its avatar (or open
-  `/watch.html?follow=hh_osaka`). It reads `GET /town`, which needs no household token.
+  `/watch.html?follow=hh_osaka`); "Stop following" (or Esc) goes back to the whole town. It
+  reads `GET /town`, which needs no household token.
 - **Inside Alexa**: the MCP App below uses the same renderer and follows your own avatar.
 
 ### The picture diary

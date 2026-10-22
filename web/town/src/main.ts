@@ -5,7 +5,7 @@
  * (`ui/message`). The town itself is the same pixel-art world as the watch page.
  */
 import { App } from "@modelcontextprotocol/ext-apps";
-import { createTownView } from "../../townkit/scene";
+import { createTown } from "../../townkit/view";
 import type { Home, TownEvent, TownState } from "../../townkit/types";
 
 const caption = document.getElementById("caption") as HTMLParagraphElement;
@@ -18,7 +18,7 @@ const status = document.getElementById("status") as HTMLSpanElement;
 const expandButton = document.getElementById("expand") as HTMLButtonElement;
 
 const app = new App({ name: "overhearth-town", version: "0.2.0" }, {});
-const town = await createTownView(document.getElementById("map") as HTMLElement);
+const town = await createTown(document.getElementById("map") as HTMLElement, { camera: "fixed" });
 let state: TownState | null = null;
 let following = true;
 

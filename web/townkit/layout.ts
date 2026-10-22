@@ -38,6 +38,8 @@ export interface Layout {
   plaza: { x: number; y: number; w: number; h: number };
   fountain: Point;
   decor: Decor[];
+  /** Tiles nobody walks through: the fountain and the benches on the plaza (y * width + x). */
+  blocked: Set<number>;
 }
 
 const LOT_STEP = 4; // 3 tiles of house + 1 tile of gap
@@ -125,14 +127,24 @@ export function buildLayout(homeIds: string[]): Layout {
   }
   for (const y of roadRows) for (let x = 3; x < width - 3; x += 8) if (ground[y - 1]?.[x] === "grass" && !used.has(`${x},${y - 1}`)) decor.push({ kind: "lamp", x, y: y - 1 });
   decor.push({ kind: "bench", x: plaza.x + 1, y: plaza.y + 1 }, { kind: "bench", x: plaza.x + plaza.w - 2, y: plaza.y + 1 });
-  return { width, height, ground, lots, sites, plaza, fountain, decor };
+  // The fountain takes the 3x3 tiles around its center (the middle road runs into it), so
+  // avatars walk around it instead of through it, and never stop to talk inside it.
+  const blocked = new Set<number>();
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) blocked.add((fountain.y + dy) * width + fountain.x + dx);
+  for (const d of decor) if (d.kind === "bench") blocked.add(d.y * width + d.x);
+  return { width, height, ground, lots, sites, plaza, fountain, decor, blocked };
 }
 
 /** Shortest walk over roads and the plaza (breadth-first; the map is small). */
 export function walkPath(layout: Layout, from: Point, to: Point): Point[] {
   const key = (p: Point) => p.y * layout.width + p.x;
   const walkable = (x: number, y: number) =>
-    x >= 0 && y >= 0 && x < layout.width && y < layout.height && layout.ground[y][x] !== "grass";
+    x >= 0 &&
+    y >= 0 &&
+    x < layout.width &&
+    y < layout.height &&
+    layout.ground[y][x] !== "grass" &&
+    !layout.blocked.has(y * layout.width + x);
   const previous = new Map<number, number>([[key(from), -1]]);
   const queue: Point[] = [from];
   while (queue.length) {
