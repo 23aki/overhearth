@@ -159,7 +159,8 @@ the town follows day and night.
   last exchange, never what was said (`GET /town/activity`, polled by the watch page).
 - **Watch page** (`/watch.html`): the whole town, live, without going through Alexa. New town
   time is replayed as soon as it happens. Pick a home to follow its avatar (or open
-  `/watch.html?follow=hh_osaka`). It reads `GET /town`, which needs no household token.
+  `/watch.html?follow=hh_osaka`); "Stop following" (or Esc) goes back to the whole town. It
+  reads `GET /town`, which needs no household token.
 - **Inside Alexa**: the MCP App below uses the same renderer and follows your own avatar.
 
 ### The picture diary

@@ -11,6 +11,7 @@ const POLL_MS = 15_000;
 const ACTIVITY_MS = 3_000;
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const followSelect = $<HTMLSelectElement>("follow");
+const unfollowButton = $<HTMLButtonElement>("unfollow");
 const replayButton = $<HTMLButtonElement>("replay");
 const nightButton = $<HTMLButtonElement>("night");
 const subtitlesButton = $<HTMLButtonElement>("subtitles");
@@ -48,7 +49,16 @@ function fillFollow(homes: Home[]): void {
   followSelect.value = current;
 }
 
+/** The home whose card is open, if any. */
+let cardHome: Home | null = null;
+
+function setFollow(id: string | null): void {
+  followSelect.value = id ?? "";
+  followSelect.dispatchEvent(new Event("change"));
+}
+
 function showCard(home: Home): void {
+  cardHome = home;
   const title = document.createElement("h2");
   title.textContent = home.avatar;
   const label = document.createElement("p");
@@ -63,14 +73,23 @@ function showCard(home: Home): void {
   const who = home.tier === "background" ? "A simulated resident" : home.tier === "demo" ? "A demo home" : "A linked home";
   const speaks = home.language ? new Intl.DisplayNames(["en"], { type: "language" }).of(home.language) : null;
   kind.textContent = speaks ? `${who}. Speaks ${speaks}.` : `${who}.`;
+  // One button that follows this home, or stops following it.
+  const following = followSelect.value === home.id;
   const follow = document.createElement("button");
   follow.type = "button";
-  follow.textContent = `Follow ${home.avatar}`;
-  follow.addEventListener("click", () => {
-    followSelect.value = home.id;
-    followSelect.dispatchEvent(new Event("change"));
+  follow.className = following ? "ghost" : "";
+  follow.textContent = following ? "Stop following" : `Follow ${home.avatar}`;
+  follow.addEventListener("click", () => setFollow(following ? null : home.id));
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "close";
+  close.setAttribute("aria-label", "Close");
+  close.textContent = "×";
+  close.addEventListener("click", () => {
+    card.hidden = true;
+    cardHome = null;
   });
-  card.replaceChildren(title, label, thanks, kind, follow);
+  card.replaceChildren(close, title, label, thanks, kind, follow);
   card.hidden = false;
 }
 
@@ -98,9 +117,15 @@ async function refresh(): Promise<void> {
 followSelect.addEventListener("change", () => {
   const id = followSelect.value || null;
   town.follow(id);
+  unfollowButton.hidden = !id;
   const home = state?.homes.find((h) => h.id === id);
   if (home) showCard(home);
-  else card.hidden = true;
+  else if (cardHome && !card.hidden) showCard(cardHome); // the card stays, its button says Follow again
+});
+unfollowButton.addEventListener("click", () => setFollow(null));
+document.addEventListener("keydown", (e) => {
+  // Esc stops following, unless it is closing the diary.
+  if (e.key === "Escape" && followSelect.value && !document.querySelector("dialog[open]")) setFollow(null);
 });
 replayButton.addEventListener("click", () => void play());
 
@@ -152,6 +177,7 @@ if (initial) {
     fillFollow(first.homes);
     followSelect.value = initial;
     town.follow(initial);
+    unfollowButton.hidden = false;
   }
 }
 async function refreshActivity(): Promise<void> {

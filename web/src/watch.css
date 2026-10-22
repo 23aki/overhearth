@@ -19,6 +19,7 @@ button.ghost { background: transparent; color: var(--ink); border: 1px solid var
 .card p { margin: 2px 0; }
 .card .muted { color: var(--muted); font-size: 13px; }
 .card button { margin-top: 8px; }
+.card .close { position: absolute; top: 4px; right: 6px; margin: 0; padding: 0 6px; background: transparent; color: var(--muted); font-size: 18px; }
 .foot { padding: 8px 16px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); display: flex; gap: 12px; justify-content: center; }
 .foot a { color: var(--accent); }
 .diary { width: min(680px, calc(100% - 32px)); border: 0; border-radius: 10px; padding: 20px 26px; background: #fffdf6; color: #3b3246; background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 31px, #c9dcef 31px, #c9dcef 32px); }
