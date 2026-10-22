@@ -70,11 +70,18 @@ const CSS = `
 .ot-layer { position: absolute; inset: 0; pointer-events: none; }
 .ot-name { font: 700 11px ui-monospace, Menlo, Consolas, monospace; color: #fff; text-shadow: 0 0 2px #1d2230, 0 0 3px #1d2230, 1px 1px 0 #1d2230; white-space: nowrap; transform: translateY(-4px); }
 .ot-place { font: 700 11px ui-monospace, Menlo, Consolas, monospace; color: #fff; background: rgba(20,26,38,.62); padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
-.ot-bubble { max-width: 230px; background: #fff; color: #1d2230; border: 1.5px solid #1d2230; border-radius: 8px; padding: 5px 8px; font: 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif; box-shadow: 0 2px 0 rgba(0,0,0,.25); position: relative; transform: translateY(-50%); }
-.ot-bubble::after { content: ""; position: absolute; left: 50%; bottom: -7px; margin-left: -6px; border: 6px solid transparent; border-top-color: #fff; border-bottom: 0; }
+/* Bubbles and their tails are one shape: the tail is an outer triangle in the border color with
+   an inner one in the fill color, sized so the outline runs evenly around the tail and the join. */
+.ot-bubble { --bc: #1d2230; --bg: #fff; --tw: 8px; --th: 9px; --ih: 6.74px; --b: 1.5px; --k: 0.8889; max-width: 230px; background: var(--bg); color: #1d2230; border: 1.5px solid var(--bc); border-radius: 8px; padding: 5px 8px; font: 13px/1.3 system-ui, -apple-system, "Segoe UI", sans-serif; filter: drop-shadow(0 2px 0 rgba(0,0,0,.25)); position: relative; transform: translateY(-50%); }
+.ot-bubble::before, .ot-bubble::after { content: ""; position: absolute; left: 50%; width: 0; height: 0; border-style: solid; border-color: transparent; }
+.ot-bubble::before { bottom: calc(-1 * var(--th)); margin-left: calc(-1 * var(--tw)); border-width: var(--th) var(--tw) 0; border-top-color: var(--bc); }
+.ot-bubble::after { bottom: calc(-1 * var(--ih)); margin-left: calc(-1 * (var(--ih) + var(--b) + 1px) * var(--k)); border-width: calc(var(--ih) + var(--b) + 1px) calc((var(--ih) + var(--b) + 1px) * var(--k)) 0; border-top-color: var(--bg); }
 .ot-bubble .gloss { display: block; margin-top: 3px; font-size: 11px; font-style: italic; color: #5b6474; }
 .ot-bubble.emote { font-size: 16px; padding: 2px 8px; }
-.ot-talk { background: #fff; border: 2px solid #34c6f4; border-radius: 10px; padding: 2px 8px; font: 700 12px ui-monospace, Menlo, Consolas, monospace; color: #1d2230; white-space: nowrap; animation: ot-bob 1.2s ease-in-out infinite; }
+.ot-talk { --bc: #34c6f4; --bg: #fff; --tw: 7px; --th: 8px; --ih: 4.96px; --b: 2px; --k: 0.875; position: relative; filter: drop-shadow(0 2px 0 rgba(0,0,0,.2)); background: var(--bg); border: 2px solid var(--bc); border-radius: 10px; padding: 2px 8px; font: 700 12px ui-monospace, Menlo, Consolas, monospace; color: #1d2230; white-space: nowrap; animation: ot-bob 1.2s ease-in-out infinite; }
+.ot-talk::before, .ot-talk::after { content: ""; position: absolute; left: 50%; width: 0; height: 0; border-style: solid; border-color: transparent; }
+.ot-talk::before { bottom: calc(-1 * var(--th)); margin-left: calc(-1 * var(--tw)); border-width: var(--th) var(--tw) 0; border-top-color: var(--bc); }
+.ot-talk::after { bottom: calc(-1 * var(--ih)); margin-left: calc(-1 * (var(--ih) + var(--b) + 1px) * var(--k)); border-width: calc(var(--ih) + var(--b) + 1px) calc((var(--ih) + var(--b) + 1px) * var(--k)) 0; border-top-color: var(--bg); }
 .ot-talk .icon { color: #ff6b8b; margin: 0 4px; }
 .ot-talk .dots::after { content: "•"; animation: ot-dots 1.05s steps(3) infinite; }
 @keyframes ot-dots { 0% { content: "•"; } 33% { content: "••"; } 66% { content: "•••"; } }
