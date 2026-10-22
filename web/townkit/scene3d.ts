@@ -172,7 +172,7 @@ class Avatar {
     this.name = label("ot-name", home.avatar);
     this.name.position.set(0, 0.62, 0);
     this.group.add(this.name);
-    const at = center(door);
+    const at = this.homeSpot();
     this.x = at.x;
     this.y = at.y;
     parent.add(this.group);
@@ -183,8 +183,12 @@ class Avatar {
     return !this.busy && this.route.length === 0;
   }
 
+  /** Walk along road tiles; a walk that ends at the home's road tile steps up to the door. */
   walk(path: Point[], speed = this.speed): Promise<void> {
-    return this.walkTo(path.map(center), speed);
+    const points = path.map(center);
+    const last = path.at(-1);
+    if (last && last.x === this.door.x && last.y === this.door.y) points.push(this.homeSpot());
+    return this.walkTo(points, speed);
   }
 
   walkTo(points: { x: number; y: number }[], speed = this.speed): Promise<void> {
@@ -201,25 +205,30 @@ class Avatar {
     this.inside = false;
     this.fade = 1;
     this.route = [];
-    const at = center(this.door);
+    const at = this.homeSpot();
     this.x = at.x;
     this.y = at.y;
+    this.group.rotation.y = 0;
     this.busy = false;
     this.finish();
     this.sync();
   }
 
-  /** The door is on the lot's front edge, just above the road tile. */
-  private doorPoint(): { x: number; y: number } {
+  /** Where the avatar waits at home: a step up from the road, right in front of its door. */
+  homeSpot(): { x: number; y: number } {
     return { x: this.door.x * TILE + TILE / 2, y: this.door.y * TILE - 4 };
+  }
+
+  /** In the doorway, where it fades out going in. */
+  private doorway(): { x: number; y: number } {
+    return { x: this.door.x * TILE + TILE / 2, y: this.door.y * TILE - 9 };
   }
 
   async goInside(): Promise<void> {
     if (this.inside || !this.idle) return;
     const generation = this.generation;
     this.busy = true;
-    const front = center(this.door);
-    await this.walkTo([front, this.doorPoint()], WALK_SPEED * 0.8);
+    await this.walkTo([this.homeSpot(), this.doorway()], WALK_SPEED * 0.8);
     if (generation !== this.generation) return;
     this.inside = true;
     this.busy = false;
@@ -230,7 +239,7 @@ class Avatar {
     const generation = this.generation;
     this.busy = true;
     this.inside = false;
-    await this.walkTo([center(this.door)], WALK_SPEED * 0.8);
+    await this.walkTo([this.homeSpot()], WALK_SPEED * 0.8);
     if (generation === this.generation) this.busy = false;
   }
 
@@ -263,6 +272,12 @@ class Avatar {
         this.y += (dy / distance) * stepLength;
         moving = true;
       }
+    }
+    // Waiting at the door, it turns to face the road (and the viewer).
+    const home = this.homeSpot();
+    if (!moving && !this.inside && Math.hypot(this.x - home.x, this.y - home.y) < 1) {
+      const turn = Math.atan2(Math.sin(-this.group.rotation.y), Math.cos(-this.group.rotation.y));
+      this.group.rotation.y += turn * Math.min(1, ms / 160);
     }
     this.step += moving ? ms : 0;
     const hop = moving ? Math.abs(Math.sin(this.step / 110)) * 0.05 : 0;
@@ -1039,7 +1054,10 @@ export async function createVoxelTownView(host: HTMLElement, options: VoxelOptio
       const k = Math.min(1, ms / 380);
       if (controls) {
         if (goal) {
+          // Move the camera with its target, so the view keeps its angle while it travels.
+          const before = controls.target.clone();
           controls.target.lerp(goal, k);
+          camera.position.add(controls.target.clone().sub(before));
           const offset = camera.position.clone().sub(controls.target);
           const d = offset.length();
           offset.setLength(d + (goalDistance - d) * k);
